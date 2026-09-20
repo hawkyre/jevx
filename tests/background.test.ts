@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => {
     runtime: { id: 'jevx-test', getURL: (path: string) => `chrome-extension://jevx-test${path}`, openOptionsPage: vi.fn(async () => undefined), sendMessage: vi.fn(async () => undefined), onMessage: { addListener: (callback: Listener) => { listener = callback; } } },
     storage: { local: storage(local), session: storage(session) },
     tabs: {
-      query: vi.fn(async () => []), sendMessage: vi.fn(async () => undefined),
+      query: vi.fn(async () => [...tabs.values()]), sendMessage: vi.fn(async (_id: number, _message: unknown) => undefined),
       get: vi.fn(async (id: number) => { if (!tabs.has(id)) throw new Error('Closed'); return tabs.get(id); }),
       create: vi.fn(async ({ url }: { url: string }) => { const tab = { id: tabs.size + 1, url }; tabs.set(tab.id, tab); return tab; }),
       update: vi.fn(async () => undefined),
@@ -46,6 +46,23 @@ beforeEach(() => {
 });
 
 describe('background security and session state', () => {
+  it('syncs a post override without broadcasting a settings reset or calling Jev', async () => {
+    mocks.tabs.set(1, { id: 1, url: 'https://x.com/home' });
+    mocks.tabs.set(2, { id: 2, url: 'https://x.com/search?q=tools' });
+    const value = post();
+    for (const show of [false, true]) {
+      expect((await mocks.call({ type: 'override', post: value, show }, x)).ok).toBe(true);
+      for (const id of [1, 2]) expect(mocks.browser.tabs.sendMessage).toHaveBeenCalledWith(id, {
+        type: 'post-override', postId: value.id, show,
+      });
+      expect((await mocks.call({ type: 'assess', post: value }, x)).value).toMatchObject({
+        status: 'assessed', assessment: { decision: show ? 'needs_context' : 'collapse', reason: 'Your choice' },
+      });
+    }
+    expect(mocks.browser.tabs.sendMessage).toHaveBeenCalledTimes(4);
+    expect(mocks.browser.runtime.sendMessage).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it('opens settings from Home without granting settings writes to X', async () => {
     expect((await mocks.call({ type: 'options' }, x)).ok).toBe(true);
     expect(mocks.browser.runtime.openOptionsPage).toHaveBeenCalledTimes(1);

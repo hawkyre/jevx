@@ -163,7 +163,9 @@ export default defineBackground(() => {
     }
     if (message.type === 'override' && fromX && isPost(message.post) && typeof message.show === 'boolean') {
       await browser.storage.session.set({ [`override:${message.post.id}`]: { show: message.show } });
-      await broadcast();
+      const update = { type: 'post-override', postId: message.post.id, show: message.show };
+      const tabs = await browser.tabs.query({ url: 'https://x.com/*' });
+      await Promise.allSettled(tabs.flatMap(tab => tab.id === undefined ? [] : [browser.tabs.sendMessage(tab.id, update)]));
       return null;
     }
     if (message.type === 'explore' && fromX && typeof message.query === 'string' && message.query.trim()) {

@@ -15,6 +15,10 @@ export default defineContentScript({
     });
     const changed = (message: unknown) => {
       if ((message as { type?: string } | null)?.type === 'changed') void feed.refresh().catch(() => undefined);
+      const update = message as { type?: unknown; postId?: unknown; show?: unknown } | null;
+      if (update?.type === 'post-override' && typeof update.postId === 'string' && typeof update.show === 'boolean') {
+        feed.applyOverride(update.postId, update.show);
+      }
     };
     browser.runtime.onMessage.addListener(changed);
     ctx.addEventListener(window, 'wxt:locationchange', () => feed.navigate());

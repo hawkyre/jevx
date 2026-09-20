@@ -48,7 +48,7 @@ if (view === 'feed') {
       relevance: overrides.has(post.id) ? null : ['1', '3'].includes(post.id) ? 5 : 1,
     } }),
     toggle: async enabled => { await api.toggle(enabled); await feed.refresh(); },
-    override: async (post, show) => { overrides.set(post.id, show); await feed.refresh(); },
+    override: async (post, show) => { overrides.set(post.id, show); feed.applyOverride(post.id, show); },
     explore: async () => undefined,
     options: api.options,
   }, document, () => 'https://x.com/home');

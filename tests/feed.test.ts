@@ -18,6 +18,49 @@ function setup(check = vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'as
 }
 
 describe('feed behavior', () => {
+  it('updates only the selected post and keeps other controls and assessments', async () => {
+    const { main, feed, api } = setup();
+    const selected = article(post());
+    const other = article(post({ id: '222' }));
+    main.append(selected, other);
+    await vi.waitFor(() => expect(other.dataset.jevxState).toBe('collapsed'));
+    const controls = other.querySelector('[data-jevx-ui="post"]');
+    const toolbar = main.querySelector('[data-jevx-ui="toolbar"]');
+    feed.applyOverride('123456789', true);
+    await vi.waitFor(() => expect(selected.querySelector('[data-jevx-ui]')?.textContent).toBe('Collapse'));
+    feed.applyOverride('123456789', false);
+    await vi.waitFor(() => expect(selected.dataset.jevxState).toBe('collapsed'));
+    expect(other.querySelector('[data-jevx-ui="post"]')).toBe(controls);
+    expect(main.querySelector('[data-jevx-ui="toolbar"]')).toBe(toolbar);
+    expect(api.state).toHaveBeenCalledTimes(1);
+    expect(api.check).toHaveBeenCalledTimes(2);
+  });
+  it.each([true, false])('preserves override %s when an earlier assessment finishes', async show => {
+    let resolve!: (value: PostResult) => void;
+    const check = vi.fn<FeedApi['check']>().mockImplementation(() => new Promise(done => { resolve = done; }));
+    const { main, feed } = setup(check);
+    const element = article(post()); main.append(element);
+    await vi.waitFor(() => expect(check).toHaveBeenCalledTimes(1));
+    feed.applyOverride('123456789', show);
+    resolve({ status: 'assessed', assessment: { decision: 'highlight', reason: 'Matches your interests', relevance: 5 } });
+    await vi.waitFor(() => expect(element.querySelector('[data-jevx-ui]')?.textContent).toBe(show ? 'Collapse' : 'Filtered postShow'));
+    expect(element.dataset.jevxState).toBe(show ? undefined : 'collapsed');
+    expect(check).toHaveBeenCalledTimes(1);
+  });
+  it('defers a remote override until the composer closes', async () => {
+    const { main, feed, navigate, api } = setup();
+    const element = article(post()); main.append(element);
+    await vi.waitFor(() => expect(element.dataset.jevxState).toBe('collapsed'));
+    const controls = element.querySelector('[data-jevx-ui="post"]');
+    navigate('https://x.com/compose/post');
+    feed.applyOverride('123456789', true);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(element.querySelector('[data-jevx-ui="post"]')).toBe(controls);
+    expect(element.dataset.jevxState).toBe('collapsed');
+    navigate('https://x.com/home');
+    await vi.waitFor(() => expect(element.querySelector('[data-jevx-ui]')?.textContent).toBe('Collapse'));
+    expect(api.check).toHaveBeenCalledTimes(1);
+  });
   it('preserves feed controls, ranking, and assessments across composer navigation', async () => {
     const { main, api, navigate } = setup(vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'assessed', assessment: {
       decision: 'highlight', reason: 'Matches your interests', relevance: 5,
@@ -158,8 +201,7 @@ describe('feed behavior', () => {
     expect(element.querySelector('[data-jevx-ui]')?.textContent).toContain('More context needed');
     element.querySelector<HTMLButtonElement>('[data-jevx-ui] button')!.click();
     expect(api.override).toHaveBeenCalledWith(expect.objectContaining({ id: '123456789' }), true);
-    check.mockResolvedValue({ status: 'assessed', assessment: { decision: 'needs_context', reason: 'Your choice', relevance: null } });
-    await feed.refresh();
+    feed.applyOverride('123456789', true);
     await vi.waitFor(() => expect(element.querySelector('[data-jevx-ui]')?.textContent).toBe('Collapse'));
     expect(element.matches('[data-jevx-state="collapsed"]')).toBe(false);
   });

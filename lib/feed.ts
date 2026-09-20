@@ -31,6 +31,7 @@ function button(label: string, action: () => void): HTMLButtonElement {
 
 export function startFeed(api: FeedApi, root: Document = document, locationUrl = () => location.href) {
   const entries = new Map<HTMLElement, Entry>();
+  const overrides = new Map<string, boolean>();
   let state: PublicState | undefined;
   let generation = 0;
   let scheduled = false;
@@ -239,6 +240,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
         const freshPost = extractPost(article, feedUrl, root.documentElement.lang);
         if (!freshPost || JSON.stringify(freshPost) !== entry.signature) { schedule(); continue; }
         entry.checking = false;
+        if (overrides.has(entry.post.id)) continue;
         entry.result = exclusion(entry.post) ?? result;
         render(article, entry);
         renderRanking();
@@ -275,7 +277,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
       const entry: Entry = { post, signature, needsRender: false, shown: false, checking: false };
       entries.set(article, entry);
       if (!state.settings.enabled) continue;
-      entry.result = exclusion(post) ?? undefined;
+      entry.result = exclusion(post) ?? (overrides.has(post.id) ? overrideResult(overrides.get(post.id)!) : undefined);
       render(article, entry);
     }
     scheduleScoreUpdate();
@@ -287,6 +289,24 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
     if (scheduled || disposed) return;
     scheduled = true;
     queueMicrotask(scan);
+  }
+
+  function overrideResult(show: boolean): PostResult {
+    return { status: 'assessed', assessment: {
+      decision: show ? 'needs_context' : 'collapse', reason: 'Your choice', relevance: null,
+    } };
+  }
+
+  function applyOverride(postId: string, show: boolean) {
+    if (disposed) return;
+    overrides.set(postId, show);
+    for (const entry of entries.values()) {
+      if (entry.post.id !== postId || exclusion(entry.post)) continue;
+      entry.result = overrideResult(show);
+      entry.shown = show;
+      entry.needsRender = true;
+    }
+    schedule();
   }
 
   const observer = new MutationObserver(records => {
@@ -312,6 +332,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   void refresh().catch(showError);
   return {
     refresh,
+    applyOverride,
     navigate: schedule,
     dispose() {
       disposed = true; observer.disconnect(); clearTimeout(expiry); toolbar?.remove(); rankingPanel?.remove();
