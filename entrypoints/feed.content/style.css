@@ -13,6 +13,8 @@ article[data-jevx-state="collapsed"] { min-height: 0 !important; display: block 
 article[data-jevx-state="collapsed"] > :not([data-jevx-ui]) { display: none !important; }
 [data-jevx-state="collapsed"] > .jevx-post-controls { justify-content: space-between; padding: 8px 16px; }
 article[data-jevx-state="highlight"] { box-shadow: inset 2px 0 0 #648773; }
+time[data-jevx-recent] { display: inline-block; padding: 1px 6px; border-radius: 999px; background: #a16c0017; color: #835800; font-weight: 500; line-height: 1.4; }
+@media (prefers-color-scheme: dark) { time[data-jevx-recent] { background: #e8bc4d1f; color: #e8bc4d; } }
 article:has(> .jevx-post-controls):not([data-jevx-state="collapsed"]) { flex-wrap: wrap; }
 article > .jevx-post-controls { flex-basis: 100%; }
 [data-jevx-score] { color: var(--jevx-accent); font-weight: 600; white-space: nowrap; }

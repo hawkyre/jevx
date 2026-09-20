@@ -18,6 +18,19 @@ function setup(check = vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'as
 }
 
 describe('feed behavior', () => {
+  it('highlights only the outer timestamp and removes the pill at one hour', async () => {
+    vi.useFakeTimers();
+    const { main } = setup(vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'assessed', assessment: { decision: 'highlight', reason: 'Matches your interests', relevance: 5 } }));
+    const element = article(post({ createdAt: Date.now() - 60 * 60 * 1000 + 100 }));
+    const quoted = document.createElement('a'); quoted.href = '/other/status/222';
+    const quoteTime = document.createElement('time'); quoteTime.dateTime = new Date().toISOString(); quoted.append(quoteTime); element.append(quoted);
+    main.append(element);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(element.querySelector('time')?.hasAttribute('data-jevx-recent')).toBe(true);
+    expect(quoteTime.hasAttribute('data-jevx-recent')).toBe(false);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(element.querySelector('[data-jevx-recent]')).toBeNull();
+  });
   it.each(['/notifications', '/notifications/verified', '/notifications/mentions?filter=all'])('does not filter %s, even after settings or override updates', async path => {
     const { main, api, feed, navigate } = setup();
     navigate(`https://x.com${path}`);

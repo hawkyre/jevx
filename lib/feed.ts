@@ -3,6 +3,8 @@ import { exclusion, isScore, type Post, type PostResult, type PublicState } from
 import { compareScores, nextScoreChange, scorePost, type PostScore } from './ranking';
 import { postActions } from './post-actions';
 
+const RECENT_POST_WINDOW_MS = 60 * 60 * 1000;
+
 export interface FeedApi {
   state(): Promise<PublicState>;
   check(post: Post): Promise<PostResult>;
@@ -58,6 +60,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   }
 
   function cleanup(article: HTMLElement) {
+    article.querySelectorAll('[data-jevx-recent]').forEach(time => time.removeAttribute('data-jevx-recent'));
     delete article.dataset.jevxState;
     article.querySelectorAll(':scope > [data-jevx-ui]').forEach(node => node.remove());
     const original = article.dataset.jevxOriginalLabel;
@@ -127,6 +130,15 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   }
 
   function updateScore(article: HTMLElement, entry: Entry) {
+    article.querySelectorAll('[data-jevx-recent]').forEach(time => time.removeAttribute('data-jevx-recent'));
+    const age = Date.now() - entry.post.createdAt;
+    if (state?.settings.enabled && !showAll && entry.post.kind === 'post' && age >= 0 && age < RECENT_POST_WINDOW_MS) {
+      const time = [...article.querySelectorAll<HTMLElement>('time[datetime]')].find(element => {
+        const href = element.closest('a')?.getAttribute('href');
+        return href && new URL(href, 'https://x.com').pathname.endsWith(`/status/${entry.post.id}`);
+      });
+      time?.setAttribute('data-jevx-recent', 'true');
+    }
     const badge = article.querySelector<HTMLElement>('[data-jevx-score]');
     const score = entryScore(entry);
     if (!badge || !score || !state) return;
@@ -229,7 +241,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
     clearTimeout(expiry);
     if (!state || notificationsOpen()) return;
     const now = Date.now();
-    const deadlines = [...entries.values()].map(entry => nextScoreChange(entry.post.createdAt, state!.settings.ranking, now))
+    const deadlines = [...entries.values()].flatMap(entry => [nextScoreChange(entry.post.createdAt, state!.settings.ranking, now), entry.post.createdAt + RECENT_POST_WINDOW_MS])
       .filter((time): time is number => time !== null && time > now);
     if (deadlines.length) expiry = setTimeout(() => {
       if (!composerOpen() && !notificationsOpen()) {
