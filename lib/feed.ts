@@ -47,6 +47,11 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   let refreshRequest = 0;
   let rankingSignature = '';
 
+  function notificationsOpen() {
+    const path = new URL(locationUrl()).pathname;
+    return path === '/notifications' || path.startsWith('/notifications/');
+  }
+
   function composerOpen() {
     return new URL(locationUrl()).pathname.startsWith('/compose/') ||
       Boolean(root.querySelector('[role="dialog"] [data-testid^="tweetTextarea_"]'));
@@ -65,6 +70,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   }
 
   function render(article: HTMLElement, entry: Entry) {
+    if (notificationsOpen()) return;
     if (composerOpen()) { entry.needsRender = true; return; }
     entry.needsRender = false;
     cleanup(article);
@@ -130,6 +136,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   }
 
   function renderRanking() {
+    if (notificationsOpen()) return;
     if (composerOpen()) return;
     if (!showRanking || !toolbar?.isConnected) { rankingPanel?.remove(); rankingSignature = ''; return; }
     const matches = new Map<string, { post: Post; score: PostScore; createdAt: number; entry: Entry }>();
@@ -185,6 +192,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   }
 
   function renderToolbar() {
+    if (notificationsOpen()) return;
     if (!state || composerOpen()) return;
     if (!root.querySelector(POST_SELECTOR)) { toolbar?.remove(); rankingPanel?.remove(); return; }
     const column = root.querySelector('[data-testid="primaryColumn"]') ?? root.querySelector('main');
@@ -219,12 +227,12 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
 
   function scheduleScoreUpdate() {
     clearTimeout(expiry);
-    if (!state) return;
+    if (!state || notificationsOpen()) return;
     const now = Date.now();
     const deadlines = [...entries.values()].map(entry => nextScoreChange(entry.post.createdAt, state!.settings.ranking, now))
       .filter((time): time is number => time !== null && time > now);
     if (deadlines.length) expiry = setTimeout(() => {
-      if (!composerOpen()) {
+      if (!composerOpen() && !notificationsOpen()) {
         for (const [article, entry] of entries) updateScore(article, entry);
         renderRanking();
       }
@@ -233,11 +241,11 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   }
 
   async function process() {
-    if (processing || disposed || !state?.settings.enabled || composerOpen()) return;
+    if (processing || disposed || !state?.settings.enabled || composerOpen() || notificationsOpen()) return;
     processing = true;
     try {
       for (const [article, entry] of entries) {
-        if (disposed || !state.settings.enabled || composerOpen()) break;
+        if (disposed || !state.settings.enabled || composerOpen() || notificationsOpen()) break;
         if (entry.result || entry.checking || !article.isConnected) continue;
         entry.checking = true;
         render(article, entry);
@@ -249,6 +257,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
             ? error.message : 'Could not check. Pause, then resume to retry' };
         }
         if (disposed) break;
+        if (notificationsOpen()) { schedule(); break; }
         if (requestedGeneration !== generation || entries.get(article) !== entry) continue;
         const freshPost = extractPost(article, feedUrl, root.documentElement.lang);
         if (!freshPost || JSON.stringify(freshPost) !== entry.signature) { schedule(); continue; }
@@ -260,13 +269,24 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
       }
     } finally {
       processing = false;
-      if (!disposed && state?.settings.enabled && !composerOpen() && [...entries.values()].some(entry => !entry.result && !entry.checking)) void process();
+      if (!disposed && state?.settings.enabled && !composerOpen() && !notificationsOpen() && [...entries.values()].some(entry => !entry.result && !entry.checking)) void process();
     }
   }
 
   function scan() {
     scheduled = false;
-    if (disposed || !state || composerOpen()) return;
+    if (disposed) return;
+    if (notificationsOpen()) {
+      clearTimeout(expiry);
+      toolbar?.remove();
+      rankingPanel?.remove();
+      rankingSignature = '';
+      for (const article of entries.keys()) cleanup(article);
+      if (entries.size) generation++;
+      entries.clear();
+      return;
+    }
+    if (!state || composerOpen()) return;
     feedUrl = locationUrl();
     if (resetPending) {
       resetPending = false;

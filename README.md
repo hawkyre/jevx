@@ -33,6 +33,8 @@ Searches open in X's Latest view with replies excluded. The extension reuses its
 
 The filter runs automatically on X Home, including **For you** and **Following**, and on loaded posts across X tabs. Saved searches are optional. Use **Settings** in the feed toolbar to set up your profile and key without opening the extension popup.
 
+Notifications pages are excluded, including their sub-tabs. jevx removes its controls and starts no new assessments there. Filtering resumes when you leave Notifications.
+
 **Show** reveals a collapsed post. **Show all** reveals the current tab. **Filter off** pauses filtering across tabs. The **⋯** button opens post actions: find more from the author, search a related topic, or hide the post. Add a search in the popup if you want to save it.
 
 Relevant posts show a score from 1 to 5. Click the score for its reason and breakdown. **Top matches** ranks the loaded matches in the current tab without moving X's feed.

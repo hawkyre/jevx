@@ -18,6 +18,49 @@ function setup(check = vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'as
 }
 
 describe('feed behavior', () => {
+  it.each(['/notifications', '/notifications/verified', '/notifications/mentions?filter=all'])('does not filter %s, even after settings or override updates', async path => {
+    const { main, api, feed, navigate } = setup();
+    navigate(`https://x.com${path}`);
+    const element = article(post()); main.append(element);
+    await feed.refresh();
+    feed.applyOverride('123456789', false);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(main.querySelector('[data-jevx-ui]')).toBeNull();
+    expect(element.dataset.jevxState).toBeUndefined();
+    expect(api.check).not.toHaveBeenCalled();
+    navigate('https://x.com/home');
+    await vi.waitFor(() => expect(element.dataset.jevxState).toBe('collapsed'));
+  });
+  it('removes filtering on entry to Notifications and ignores a pending assessment', async () => {
+    let resolve!: (value: PostResult) => void;
+    const check = vi.fn<FeedApi['check']>().mockImplementationOnce(() => new Promise(done => { resolve = done; }))
+      .mockResolvedValue({ status: 'assessed', assessment: { decision: 'collapse', reason: 'Outside your interests', relevance: 1 } });
+    const { main, navigate } = setup(check);
+    const element = article(post()); main.append(element);
+    await vi.waitFor(() => expect(check).toHaveBeenCalledTimes(1));
+    navigate('https://x.com/notifications');
+    resolve({ status: 'assessed', assessment: { decision: 'collapse', reason: 'Outside your interests', relevance: 1 } });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(main.querySelector('[data-jevx-ui]')).toBeNull();
+    expect(element.dataset.jevxState).toBeUndefined();
+    main.append(article(post({ id: '222' })));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(check).toHaveBeenCalledTimes(1);
+    navigate('https://x.com/home');
+    await vi.waitFor(() => expect(element.dataset.jevxState).toBe('collapsed'));
+  });
+  it('restores collapsed posts and removes the toolbar and ranking on Notifications', async () => {
+    const { main, navigate } = setup();
+    const element = article(post()); main.append(element);
+    const originalLabel = element.getAttribute('aria-labelledby');
+    await vi.waitFor(() => expect(element.dataset.jevxState).toBe('collapsed'));
+    [...main.querySelectorAll<HTMLButtonElement>('[data-jevx-ui="toolbar"] button')].find(button => button.textContent === 'Top matches')!.click();
+    expect(main.querySelector('[data-jevx-ui="ranking"]')).not.toBeNull();
+    navigate('https://x.com/notifications/mentions');
+    await vi.waitFor(() => expect(main.querySelector('[data-jevx-ui]')).toBeNull());
+    expect(element.dataset.jevxState).toBeUndefined();
+    expect(element.getAttribute('aria-labelledby')).toBe(originalLabel);
+  });
   it('provides score details and post actions in Top matches without nesting controls in a link', async () => {
     const { main, api, feed } = setup(vi.fn<FeedApi['check']>().mockResolvedValue({
       status: 'assessed', assessment: { decision: 'highlight', reason: 'Matches your interests', relevance: 5 },
