@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>jevx · Store artwork</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #121512; color: #e7eae5; font-family: Arial, sans-serif; }
+    main { width: 1280px; height: 800px; display: grid; grid-template-columns: 1fr 640px; gap: 48px; padding: 64px; margin-inline: auto; }
+    .copy { display: flex; flex-direction: column; justify-content: center; }
+    .brand { display: flex; align-items: center; gap: 12px; font-size: 32px; font-weight: 700; letter-spacing: -2px; }
+    .brand img { width: 40px; height: 40px; border-radius: 8px; }
+    .brand span { color: #a6c7ad; }
+    h1 { font-size: 48px; font-weight: 500; line-height: 1.1; letter-spacing: -2px; margin: 48px 0 24px; }
+    p { color: #a0a79d; font-size: 19px; line-height: 1.6; margin: 0; }
+    .note { margin-top: 40px; font-size: 13px; }
+    .preview { align-self: center; }
+    iframe { width: 640px; height: 560px; border: 1px solid #2b322b; border-radius: 12px; color-scheme: dark; }
+    .caption { margin-top: 16px; font-size: 12px; text-align: center; }
+    body.promo main { width: 440px; height: 280px; display: block; padding: 32px; }
+    body.promo .brand { font-size: 24px; }
+    body.promo h1 { font-size: 32px; margin: 24px 0 16px; letter-spacing: -1px; }
+    body.promo p { font-size: 14px; }
+    body.promo .preview, body.promo .note { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="copy">
+      <div class="brand"><img src="/icon/128.png" alt=""><span>jevx.</span></div>
+      <h1>Find posts worth your reply.</h1>
+      <p>Keep relevant posts.<br>Collapse the noise.<br>Explore your interests on X.</p>
+      <p class="note">Free, open-source extension.<br>Bring your TypeSafe key. API charges apply.</p>
+    </div>
+    <div class="preview">
+      <iframe title="jevx feed preview" src="/tests/preview.html?view=feed"></iframe>
+      <p class="caption">Actual extension controls · Sample posts and assessments</p>
+    </div>
+  </main>
+  <script type="module">
+    if (new URL(location.href).searchParams.has('promo')) document.body.className = 'promo';
+  </script>
+</body>
+</html>

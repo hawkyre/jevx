@@ -81,10 +81,16 @@ Open `/tests/preview.html`, `/tests/preview.html?view=options`, or `/tests/previ
 
 - The extension reads only posts X loads. It does not crawl, scroll automatically, or guarantee complete search coverage.
 - Reply detection supports the observed English layout. Other languages remain unassessed. X can change its markup; ambiguous or missing dates remain visible.
-- Thread pages can omit reply markers. The opened post stays unassessed when its type is unclear. Other thread posts are excluded.
+- Thread pages can omit reply markers. The opened post uses the same English reply-marker check as Home; a missing marker can cause a reply to be assessed as a post. Other thread posts are excluded.
 - Collapsed rows remain separate. X's virtualized feed can affect spacing and scrolling; use **Show all** if the layout behaves incorrectly.
 - Jev sees text, not images or videos. Posts assessed as needing more context collapse. Posts with no text bypass assessment and remain unscored.
 - The API contract, background flow, and UI use automated tests with mocked responses. Real Jev relevance quality requires a user key and review of actual matches.
 - The request timeout, cache lifetime, and initial visual tokens are explicitly unvalidated settings. Adjust them from measured behavior.
 
 MIT licensed.
+
+## Release
+
+Run `npm run release` to test, type-check, build, validate, and package both browsers. ZIP files and the Firefox source archive appear in `.output`.
+
+See [store text and submission steps](docs/STORE.md), [reviewer build instructions](docs/BUILD.md), and the [privacy policy](public/privacy.html). The policy is also available from Settings. Store submission needs a public policy URL, publisher details, and reviewer access; these are not included in the source package.

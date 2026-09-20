@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>jevx · Privacy</title>
+  <style>
+    :root { color-scheme: light dark; font: 16px/1.6 system-ui, sans-serif; }
+    body { max-width: 680px; margin: 48px auto; padding: 0 24px; }
+    h1 { font-size: 32px; } h2 { margin-top: 32px; font-size: 20px; }
+    a { color: inherit; } li { margin-block: 8px; }
+  </style>
+</head>
+<body>
+  <h1>jevx privacy policy</h1>
+  <p>Effective September 20, 2026.</p>
+  <p>jevx filters and ranks posts loaded on X. It has no developer-operated server, advertising, or analytics.</p>
+  <h2>What leaves your browser</h2>
+  <p>Assessment is off until you enable it, save a profile, and provide a TypeSafe API key. While filtering is on, jevx sends eligible loaded posts to TypeSafe automatically. It sends your background, interests, audience, exclusions, post text, quoted text, author handle, and an indication of missing or media context. Your API key authenticates these HTTPS requests.</p>
+  <p>TypeSafe also receives the network information needed to handle requests, including your IP address. Its storage and retention practices are outside jevx's control. Check TypeSafe's terms and privacy information before you enable assessment. API use can incur charges.</p>
+  <p>Posts from feeds you can access can include non-public content. Do not enable assessment if you do not want that content sent to TypeSafe. jevx does not read direct-message conversations or text you type in the reply composer.</p>
+  <p>When you open a saved search or select a related search, X receives that search query. jevx does not transmit your saved searches to TypeSafe. Normal use of X remains subject to X's policies.</p>
+  <h2>What stays in your browser</h2>
+  <ul>
+    <li>Your profile, searches, consent, and settings stay in local extension storage.</li>
+    <li>Your TypeSafe key stays in extension-owned IndexedDB until you disconnect or remove the extension. It is not encrypted by jevx and is not exposed to X page scripts.</li>
+    <li>Assessment results, Show/Hide choices, and managed search tab IDs stay in session storage. A browser restart clears them.</li>
+    <li>Assessment cache entries expire after one hour and are removed during later assessments or at browser restart. The cache stores a content hash and assessment, not raw post text. Post text remains in memory while the tab is open.</li>
+  </ul>
+  <h2>Your controls</h2>
+  <p>Turn filtering off to stop new assessments. Clear “Use Jev to assess posts” and save your profile to withdraw assessment consent. Disconnect removes the saved API key. Edit or remove saved searches in the popup. Remove the extension to delete its local data. Data already sent to TypeSafe is subject to its retention practices.</p>
+  <h2>Data use</h2>
+  <p>jevx uses data only to provide its visible search, filtering, and ranking features. The developer does not receive or sell this data. jevx does not use it for advertising, credit decisions, or unrelated tracking. jevx's use of user data complies with the Chrome Web Store User Data Policy, including its Limited Use requirements.</p>
+  <h2>Questions</h2>
+  <p>Use the support link on the store listing. Do not include your API key or private post content in a support request.</p>
+</body>
+</html>

@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "license": "MIT",
   "type": "module",
+  "engines": { "node": "24.x" },
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
@@ -15,7 +16,8 @@
     "typecheck": "wxt prepare && tsc --noEmit",
     "test": "vitest run",
     "postinstall": "wxt prepare",
-    "lint:firefox": "web-ext lint --source-dir .output/firefox-mv3 --warnings-as-errors"
+    "lint:firefox": "web-ext lint --source-dir .output/firefox-mv3 --warnings-as-errors",
+    "release": "npm run typecheck && npm test && npm run zip && npm run zip:firefox && npm run lint:firefox && node scripts/check-release.mjs"
   },
   "devDependencies": {
     "@types/node": "24.13.6",

@@ -125,7 +125,8 @@ export async function mountOptions(root: HTMLElement, api: UiApi) {
         <label>Freshness window (minutes)<input name="freshnessMinutes" type="number" min="1" step="1" required></label></div>
         <p class="hint">Recency falls from 5 to 1 across this window. Older posts keep a recency score of 1.</p>
       </fieldset>
-      <label class="consent"><input type="checkbox" name="consent"><span>Use Jev to assess posts.<small>Your profile and eligible post text are sent to TypeSafe. TypeSafe usage can incur charges.</small></span></label>
+      <label class="consent"><input type="checkbox" name="consent"><span>Use Jev to assess posts.<small>Send your profile, post text, quoted text, and author handles to TypeSafe for ranking. Requests use your saved API key. TypeSafe usage can incur charges.</small></span></label>
+      <a class="text-link" href="privacy.html" target="_blank" rel="noreferrer">Privacy and data use ↗</a>
       <button type="submit" class="primary">Save profile</button>
     </form>
     <section class="connection-section" aria-labelledby="connection-heading"><div class="section-title"><h3 id="connection-heading">TYPESAFE</h3><span id="connection-state" class="muted"></span></div>

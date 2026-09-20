@@ -10,7 +10,7 @@ function setup(check = vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'as
   document.documentElement.lang = 'en';
   document.body.innerHTML = '<main data-testid="primaryColumn"></main>';
   const state = readyState();
-  const api: FeedApi = { state: vi.fn().mockImplementation(async () => state), check, toggle: vi.fn(), override: vi.fn().mockResolvedValue(null), explore: vi.fn(), options: vi.fn().mockResolvedValue(null) };
+  const api: FeedApi = { state: vi.fn().mockImplementation(async () => state), check, toggle: vi.fn(), override: vi.fn().mockResolvedValue(null), explore: vi.fn().mockResolvedValue(null), options: vi.fn().mockResolvedValue(null) };
   let currentUrl = 'https://x.com/home';
   const feed = startFeed(api, document, () => currentUrl);
   stop = feed.dispose;
@@ -18,6 +18,35 @@ function setup(check = vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'as
 }
 
 describe('feed behavior', () => {
+  it('provides score details and post actions in Top matches without nesting controls in a link', async () => {
+    const { main, api, feed } = setup(vi.fn<FeedApi['check']>().mockResolvedValue({
+      status: 'assessed', assessment: { decision: 'highlight', reason: 'Matches your interests', relevance: 5 },
+    }));
+    const element = article(post()); main.append(element);
+    await vi.waitFor(() => expect(element.dataset.jevxState).toBe('highlight'));
+    [...main.querySelectorAll<HTMLButtonElement>('[data-jevx-ui="toolbar"] button')].find(button => button.textContent === 'Top matches')!.click();
+    const ranking = main.querySelector<HTMLElement>('[data-jevx-ui="ranking"]')!;
+    expect(ranking.querySelector('[data-jevx-score]')?.textContent).toBe('5/5');
+    expect(ranking.querySelector('a button')).toBeNull();
+    const openPanel = (label: string) => {
+      const panel = ranking.querySelector<HTMLElement>(`[role="dialog"][aria-label="${label}"]`)!;
+      Object.defineProperty(panel, 'hidePopover', { value: vi.fn() });
+      const event = new Event('beforetoggle');
+      Object.defineProperty(event, 'newState', { value: 'open' });
+      panel.dispatchEvent(event);
+      return panel;
+    };
+    expect(openPanel('Post score').textContent).toContain('Matches your interests');
+    const actions = openPanel('Post actions');
+    actions.querySelector<HTMLButtonElement>('button')!.click();
+    expect(api.explore).toHaveBeenCalledWith('from:builder');
+    actions.querySelector<HTMLButtonElement>('.jevx-hide-action')!.click();
+    expect(api.override).toHaveBeenCalledWith(expect.objectContaining({ id: '123456789' }), false);
+    feed.applyOverride('123456789', false);
+    await vi.waitFor(() => expect(element.dataset.jevxState).toBe('collapsed'));
+    expect(main.querySelector('[data-jevx-ui="ranking"] a')).toBeNull();
+    expect(api.check).toHaveBeenCalledTimes(1);
+  });
   it('preserves the assessment when opening a post from Home', async () => {
     const { main, navigate, api } = setup(vi.fn<FeedApi['check']>().mockResolvedValue({
       status: 'assessed', assessment: { decision: 'highlight', reason: 'Matches your interests', relevance: 5 },

@@ -132,13 +132,13 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   function renderRanking() {
     if (composerOpen()) return;
     if (!showRanking || !toolbar?.isConnected) { rankingPanel?.remove(); rankingSignature = ''; return; }
-    const matches = new Map<string, { post: Post; score: PostScore; createdAt: number }>();
+    const matches = new Map<string, { post: Post; score: PostScore; createdAt: number; entry: Entry }>();
     if (state?.settings.enabled) for (const [article, entry] of entries) {
       const score = entryScore(entry);
-      if (article.isConnected && score) matches.set(entry.post.id, { post: entry.post, createdAt: entry.post.createdAt, score });
+      if (article.isConnected && score) matches.set(entry.post.id, { post: entry.post, createdAt: entry.post.createdAt, score, entry });
     }
     const sorted = [...matches.values()].sort((a, b) => compareScores(a, b, state!.settings.ranking));
-    const signature = JSON.stringify(sorted.map(match => [match.post.id, match.post.author, match.post.text, match.post.quotedText, match.score.total]));
+    const signature = JSON.stringify(sorted.map(match => [match.post.id, match.post.author, match.post.text, match.post.quotedText, match.score]));
     if (signature === rankingSignature && rankingPanel?.isConnected && toolbar.nextElementSibling === rankingPanel) return;
     rankingSignature = signature;
     rankingPanel?.remove();
@@ -155,13 +155,26 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
       rankingPanel.append(empty);
     }
     for (const match of sorted) {
+      const row = document.createElement('div');
+      row.className = 'jevx-ranking-row';
       const link = document.createElement('a');
       link.href = `https://x.com/${match.post.author}/status/${match.post.id}`;
       link.target = '_blank'; link.rel = 'noopener noreferrer';
-      const score = document.createElement('strong'); score.textContent = `${match.score.total}/5`;
       const text = document.createElement('span'); text.textContent = match.post.text || match.post.quotedText;
       const author = document.createElement('small'); author.textContent = `@${match.post.author}`;
-      link.append(score, text, author); rankingPanel.append(link);
+      link.append(text, author);
+      const controls = document.createElement('div');
+      controls.className = 'jevx-post-controls';
+      controls.append(...postActions({
+        reason: match.entry.result?.status === 'assessed' ? match.entry.result.assessment.reason : '',
+        author: match.post.author,
+        score: () => entryScore(match.entry),
+        explore: query => { void api.explore(query).catch(showError); },
+        hide: () => { void api.override(match.post, false).catch(showError); },
+      }));
+      row.append(link, controls);
+      updateScore(row, match.entry);
+      rankingPanel.append(row);
     }
     toolbar.after(rankingPanel);
   }
