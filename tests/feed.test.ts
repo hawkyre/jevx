@@ -18,6 +18,19 @@ function setup(check = vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'as
 }
 
 describe('feed behavior', () => {
+  it('preserves the assessment when opening a post from Home', async () => {
+    const { main, navigate, api } = setup(vi.fn<FeedApi['check']>().mockResolvedValue({
+      status: 'assessed', assessment: { decision: 'highlight', reason: 'Matches your interests', relevance: 5 },
+    }));
+    const element = article(post()); main.append(element);
+    await vi.waitFor(() => expect(element.dataset.jevxState).toBe('highlight'));
+    const controls = element.querySelector('[data-jevx-ui="post"]');
+    navigate('https://x.com/builder/status/123456789');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(element.querySelector('[data-jevx-ui="post"]')).toBe(controls);
+    expect(element.dataset.jevxState).toBe('highlight');
+    expect(api.check).toHaveBeenCalledTimes(1);
+  });
   it('updates only the selected post and keeps other controls and assessments', async () => {
     const { main, feed, api } = setup();
     const selected = article(post());
@@ -123,9 +136,9 @@ describe('feed behavior', () => {
     } }));
     const element = article(post()); main.append(element);
     await vi.waitFor(() => expect(element.dataset.jevxState).toBe('highlight'));
-    navigate('https://x.com/builder/status/123456789');
-    await vi.waitFor(() => expect(element.textContent).toContain('Could not check the post type'));
-    expect(element.dataset.jevxState).toBeUndefined();
+    navigate('https://x.com/other/status/555');
+    await vi.waitFor(() => expect(element.dataset.jevxState).toBe('collapsed'));
+    expect(element.querySelector('[data-jevx-ui]')?.textContent).toContain('Reply');
     expect(api.state).toHaveBeenCalledTimes(1);
   });
   it('filters newly loaded Home posts without opening searches', async () => {

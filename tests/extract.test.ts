@@ -38,6 +38,12 @@ describe('X post extraction', () => {
     expect(extractPost(article(post()), 'https://x.com/home', 'ja')?.kind).toBe('unknown');
     expect(extractPost(article(post()), 'https://x.com/other/status/555', 'en')?.kind).toBe('reply');
   });
+  it('recognizes the opened post and checks its reply marker on direct entry', () => {
+    const url = 'https://x.com/builder/status/123456789';
+    expect(extractPost(article(post()), url, 'en')?.kind).toBe('post');
+    expect(extractPost(article(post(), true), url, 'en')?.kind).toBe('reply');
+    expect(extractPost(article(post()), url, 'ja')?.kind).toBe('unknown');
+  });
   it('rejects missing dates and marks media context incomplete', () => {
     const element = article(post());
     const image = document.createElement('div'); image.dataset.testid = 'tweetPhoto'; element.append(image);

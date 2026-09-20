@@ -33,7 +33,7 @@ export function extractPost(article: HTMLElement, pageUrl: string, language: str
   let kind: Post['kind'] = 'unknown';
   if (replyLabel) kind = 'reply';
   else if (inThread && !isThreadRoot) kind = 'reply';
-  else if (!inThread && language.toLowerCase().startsWith('en')) kind = 'post';
+  else if (language.toLowerCase().startsWith('en')) kind = 'post';
   return {
     id: match[2], author: match[1], text, quotedText, createdAt, kind,
     incomplete: (!text.trim() && !quotedText.trim()) || Boolean(article.querySelector('[data-testid="tweet-text-show-more-link"]')) ||
