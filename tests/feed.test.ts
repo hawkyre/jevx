@@ -317,9 +317,14 @@ describe('feed behavior', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(element.matches('[data-jevx-state="highlight"]')).toBe(true);
     expect(element.querySelector('[data-jevx-score]')?.getAttribute('title')).toContain('Recency 5/5');
+    expect(element.dataset.jevxRating).toBe('5');
     await vi.advanceTimersByTimeAsync(100);
     expect(element.matches('[data-jevx-state="highlight"]')).toBe(true);
     expect(element.querySelector('[data-jevx-score]')?.getAttribute('title')).toContain('Recency 4/5');
+    await vi.advanceTimersByTimeAsync(firstStep * 2);
+    expect(element.dataset.jevxRating).toBe('4');
+    [...main.querySelectorAll<HTMLButtonElement>('[data-jevx-ui="toolbar"] button')].find(button => button.textContent === 'Show all')!.click();
+    expect(element.dataset.jevxRating).toBeUndefined();
   });
   it('retains collapse styling when X replaces its own CSS classes', async () => {
     const { main } = setup();

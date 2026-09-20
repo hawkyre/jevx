@@ -62,6 +62,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   function cleanup(article: HTMLElement) {
     article.querySelectorAll('[data-jevx-recent]').forEach(time => time.removeAttribute('data-jevx-recent'));
     delete article.dataset.jevxState;
+    delete article.dataset.jevxRating;
     article.querySelectorAll(':scope > [data-jevx-ui]').forEach(node => node.remove());
     const original = article.dataset.jevxOriginalLabel;
     if (original !== undefined) {
@@ -141,7 +142,8 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
     }
     const badge = article.querySelector<HTMLElement>('[data-jevx-score]');
     const score = entryScore(entry);
-    if (!badge || !score || !state) return;
+    if (!badge || !score || !state) { delete article.dataset.jevxRating; return; }
+    article.dataset.jevxRating = String(score.total);
     badge.textContent = `${score.total}/5`;
     badge.title = `Relevance ${score.relevance}/5 · Recency ${score.recency}/5 · Weight ${state.settings.ranking.relevanceWeight}:${state.settings.ranking.recencyWeight}`;
     badge.setAttribute('aria-label', `Score ${score.total} of 5. ${badge.title}`);
