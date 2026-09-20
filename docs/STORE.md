@@ -30,7 +30,7 @@ Independent project. Not affiliated with or endorsed by X or TypeSafe.
 
 ## Chrome privacy fields
 
-Single purpose: Help users find relevant X posts to reply to by filtering and ranking loaded posts against their profile.
+Single purpose: Help users find relevant conversations on X and improve their contributions through profile-based post filtering and draft scoring.
 
 Permission explanations:
 
@@ -76,7 +76,7 @@ X and TypeSafe can require accounts. The publisher must provide any review acces
 - [ ] Confirm publisher account details and store declarations.
 - [ ] Upload `.output/jevx-0.1.0-chrome.zip` to Chrome.
 - [ ] Upload `.output/jevx-0.1.0-firefox.zip` and `.output/jevx-0.1.0-sources.zip` to Firefox.
-- [ ] Use `store/screenshot-1280x800.png`, `store/promo-440x280.png`, and `public/icon/128.png` as listing assets.
+- [ ] Use `store/screenshot-1280x800.png`, `store/draft-1280x800.png`, `store/promo-440x280.png`, and `public/icon/128.png` as listing assets.
 
 ## Requirements checked
 

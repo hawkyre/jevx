@@ -8,7 +8,7 @@ export async function mountDraftSettings(root: HTMLElement, api: { state(): Prom
     <p class="hint">Score posts, replies, and quotes as you write. Scores measure fit to your criteria, not predicted views.</p>
     <form class="profile-form">
       <label class="consent"><input name="draftConsent" type="checkbox"><span>Assess my unpublished drafts.<small>Send draft text, available parent or quoted text, and my profile to TypeSafe after I stop typing. Uses my saved key. API charges can apply.</small></span></label>
-      <a class="text-link" href="privacy.html" target="_blank" rel="noreferrer">Privacy and data use ↗</a>
+      <a class="text-link" href="/privacy.html" target="_blank" rel="noreferrer">Privacy and data use ↗</a>
       <details class="draft-profile-editor"><summary>Profiles & scoring axes <span class="muted">Customize</span></summary>
         <div class="draft-profile-tools"><select aria-label="Profile to edit"></select><button type="button" data-copy>Duplicate</button><button type="button" data-remove>Remove</button></div>
         <label>Profile name<input name="profileName" required></label>

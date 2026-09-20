@@ -128,7 +128,7 @@ export async function mountOptions(root: HTMLElement, api: UiApi) {
       </fieldset>
       <label>Concurrent Jev requests<input name="concurrency" type="number" min="1" step="1" required><small class="hint">Shared across feed and draft scoring in all tabs. Default: 20.</small></label>
       <label class="consent"><input type="checkbox" name="consent"><span>Use Jev to assess posts.<small>Send your profile, post text, quoted text, and author handles to TypeSafe for ranking. Requests use your saved API key. TypeSafe usage can incur charges.</small></span></label>
-      <a class="text-link" href="privacy.html" target="_blank" rel="noreferrer">Privacy and data use ↗</a>
+      <a class="text-link" href="/privacy.html" target="_blank" rel="noreferrer">Privacy and data use ↗</a>
       <button type="submit" class="primary">Save profile</button>
     </form>
     <section class="connection-section" aria-labelledby="connection-heading"><div class="section-title"><h3 id="connection-heading">TYPESAFE</h3><span id="connection-state" class="muted"></span></div>

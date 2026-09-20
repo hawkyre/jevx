@@ -1,8 +1,12 @@
 # jevx
 
-A small, open-source extension for finding posts worth replying to on X.
+A small, open-source Chrome and Firefox extension for finding posts worth replying to on X and improving your drafts.
 
 Save searches. Tell Jev what interests you. Relevant posts stay expanded with a quiet highlight. Other posts collapse into a single row.
+
+![jevx feed with scored posts and collapsed rows](store/screenshot-1280x800.png)
+
+The extension and its design files are MIT licensed. AI features require your own TypeSafe key and can incur API charges. There is no jevx subscription or developer-operated backend.
 
 ## Install locally
 
@@ -37,15 +41,13 @@ Notifications pages are excluded, including their sub-tabs. jevx removes its con
 
 **Show** reveals a collapsed post. **Show all** reveals the current tab. **Filter off** pauses filtering across tabs. The **⋯** button opens post actions: find more from the author, search a related topic, or hide the post. Add a search in the popup if you want to save it.
 
-Relevant posts show a score from 1 to 5. Click the score for its reason and breakdown. **Top matches** ranks the loaded matches in the current tab without moving X's feed.
+Relevant posts show a score from 1 to 5. Higher scores have a stronger green accent and background tint. Timestamps under one hour old have a gold pill. Click the score for its reason and breakdown. **Top matches** ranks the loaded matches in the current tab without moving X's feed and provides the same post actions.
 
 Relevance has weight 3 and recency has weight 1. Both weights are editable in Settings. Recency falls from 5 to 1 across the freshness window, which starts at 60 minutes. Older posts retain a recency score of 1. Age does not hide a post. Ranking uses the weighted result before rounding the displayed score.
 
 Reposts use the original post's date. Quote posts use their own date and include available quoted text, even without a caption. Replies bypass Jev. Posts with no body or quoted text remain visible without a score.
 
-## Data and cost
-
-### Draft scoring
+## Draft scoring
 
 In Settings, enable **Assess my unpublished drafts** separately from feed assessment. With a connected TypeSafe key, a small panel appears below the post, reply, or quote editor. Choose Conversation, Virality, Credibility, or Connection. Each uses editable, unvalidated criteria. Duplicate a profile, add axes, or change weights in **Profiles & scoring axes**.
 
@@ -53,20 +55,26 @@ The panel waits one second after typing stops. All enabled axes are assessed tog
 
 Selected profiles are remembered separately for posts, replies, and quotes. Compatible axis results use a session cache. Changing weights does not require new AI judgments. Draft text is not stored by jevx. With draft consent enabled, unpublished text, available parent/quoted text, and your profile go to TypeSafe. Draft scoring is independent of the feed filter switch and skips Notifications and direct-message pages. The draft type can be corrected in the expanded panel when X's markup is ambiguous.
 
-Preview it with `/tests/preview.html?view=draft`. Preview scores are synthetic.
+![jevx draft scorer with an optimization profile and improvement cue](store/draft-1280x800.png)
+
+Preview it with `/design/preview.html?view=draft`. Preview scores are synthetic.
+
+## Data and cost
 
 | Data | Storage or destination |
 | --- | --- |
 | Profile, saved searches, filter preference, consent | This browser's local extension storage |
+| Draft scoring profiles, weights, selected goals, draft consent | This browser's local extension storage |
 | TypeSafe key | Extension-origin IndexedDB; persists across restarts until you disconnect or remove the extension |
 | Assessments | Session storage with a one-hour cache lifetime |
 | Show/Hide choices | Session storage; removed at browser restart |
 | Managed search tab IDs | Session storage |
 | Eligible post text, quoted text, author, profile | TypeSafe, only after you enable assessment |
+| Unpublished drafts, available parent/quoted text, profile, scoring criteria | TypeSafe, only after you enable draft scoring |
 
 The extension has no subscription, server, analytics, or X API dependency. TypeSafe charges for API use. Check [current pricing](https://docs.typesafe.ai/models). Your key never enters X's page scripts. Post text is not persisted by jevx.
 
-Assessments are shared across tabs. The cache includes the post content, profile, model, and criteria version. Profile edits invalidate previous matches. Weight changes recalculate scores from cached relevance without another Jev request. A service failure stops further requests until you pause and resume or update settings. Request failures remain visible. Posts marked **More context needed** collapse and can be revealed with **Show**.
+Assessments are shared across tabs. Cache keys hash the post content, profile, model, and criteria version. Profile edits invalidate previous matches. Weight changes recalculate scores from cached relevance without another Jev request. A feed service failure stops further feed requests until you pause and resume or update settings. Failed draft requests can retry after another edit. Request failures remain visible. Posts marked **More context needed** collapse and can be revealed with **Show**.
 
 **Concurrent Jev requests** in Settings defaults to 20. One shared pool bounds feed and draft requests across all tabs. Each feed request includes visibility, reason, and relevance; each draft request includes all missing enabled axes. Different posts use separate concurrent calls, following TypeSafe's [re-ranking pattern](https://docs.typesafe.ai/cookbooks/rerank_typesafe). Questions within each call run in parallel, as described in its [multiple-question guide](https://docs.typesafe.ai/patterns/fan-out). Identical pending assessments share a result. This limit is a product setting, not a claim about your TypeSafe account's rate limit.
 
@@ -86,10 +94,12 @@ npm run zip:firefox
 For a local interface preview with synthetic posts and mocked assessments:
 
 ```sh
-npx vite --host 127.0.0.1
+npm run preview
 ```
 
-Open `/tests/preview.html`, `/tests/preview.html?view=options`, or `/tests/preview.html?view=feed`. Preview data does not persist. Preview files are not included in extension builds.
+Open `/design/preview.html`. See [all design previews and editable sources](design/README.md), including settings, the feed, composers, and store artwork. Preview data does not persist. Preview files are not included in extension builds.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before making changes. Use [SECURITY.md](SECURITY.md) for sensitive reports.
 
 ## Current limits
 
@@ -101,7 +111,7 @@ Open `/tests/preview.html`, `/tests/preview.html?view=options`, or `/tests/previ
 - The API contract, background flow, and UI use automated tests with mocked responses. Real Jev relevance quality requires a user key and review of actual matches.
 - The request timeout, cache lifetime, and initial visual tokens are explicitly unvalidated settings. Adjust them from measured behavior.
 
-MIT licensed.
+The [MIT license](LICENSE) covers the project's code and supplied design assets. Bundled runtime notices are in [THIRD_PARTY_NOTICES.txt](public/THIRD_PARTY_NOTICES.txt). jevx is not affiliated with X or TypeSafe.
 
 ## Release
 

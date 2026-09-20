@@ -1,0 +1,25 @@
+name: Bug report
+description: Report a reproducible problem in jevx.
+body:
+  - type: markdown
+    attributes:
+      value: Do not include API keys, private drafts, or browser storage. Use synthetic content. For security issues, follow SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Extension and browser versions
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the page type, such as Home, search, reply, or quote composer.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true

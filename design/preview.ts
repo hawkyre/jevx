@@ -3,7 +3,7 @@ import { startFeed } from '../lib/feed';
 import { startDraftScoring } from '../lib/draft-composer';
 import { mountDraftSettings } from '../lib/draft-settings-ui';
 import { defaultDraftSettings } from '../lib/draft-model';
-import { article, post, readyState } from './fixtures';
+import { article, post, readyState } from '../tests/fixtures';
 import '../assets/ui.css';
 import '../entrypoints/feed.content/style.css';
 import '../entrypoints/feed.content/draft.css';
@@ -28,6 +28,7 @@ const root = document.querySelector<HTMLElement>('#app')!;
 const draftState = { settings: defaultDraftSettings(), connected: true };
 if (view === 'draft' || view === 'reply') {
   root.style.cssText = 'max-width:600px;margin:64px auto;padding:32px;border:1px solid var(--line);border-radius:20px';
+  if (new URL(location.href).searchParams.has('embed')) { root.style.margin = '16px auto'; root.style.padding = '24px'; }
   root.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px"><h1>jevx<span class="brand-dot">.</span></h1><span class="muted">Composer preview · Sample scores</span></div>
     <div data-testid="quoteTweet" role="link" style="border-left:2px solid var(--line);padding:0 0 0 16px;margin-bottom:24px"><span class="muted">@builder</span><p data-testid="tweetText">We shipped a new vocabulary app. How do you know whether practice transfers to real conversations?</p></div>
     <div contenteditable="true" role="textbox" aria-label="Draft text" data-testid="tweetTextarea_0" style="min-height:140px;outline:none;font-size:19px;line-height:1.6">We tested recall a week after practice, using words in new sentences. Session streaks looked great; transfer was the real test. What are you measuring today?</div>
@@ -37,7 +38,7 @@ if (view === 'draft' || view === 'reply') {
     const row = document.createElement('div'); row.style.cssText = 'display:flex;flex-direction:row;align-items:center;gap:16px';
     const editor = root.querySelector<HTMLElement>('[contenteditable]')!;
     const submit = root.querySelector<HTMLElement>('[data-testid="tweetButton"]')!.parentElement!;
-    editor.textContent = 'Post your reply'; editor.style.cssText = 'flex:1;min-width:0;font-size:20px;line-height:1.5;color:var(--muted);outline:none';
+    editor.textContent = 'We test recall in new sentences a week later. What does your retention test measure?'; editor.style.cssText = 'flex:1;min-width:0;font-size:20px;line-height:1.5;color:var(--muted);outline:none';
     submit.style.marginTop = '0'; submit.querySelector('button')!.textContent = 'Reply';
     row.append(editor, submit); root.append(row);
   }
@@ -46,7 +47,7 @@ if (view === 'draft' || view === 'reply') {
     check: async draft => ({ scores: Object.fromEntries(draftState.settings.profiles.find(p => p.id === draft.profileId)!.axes.filter(a => a.enabled).map(a => [a.id, a.id === 'specificity' ? 3 : 4])) }),
     select: async (kind, id) => { draftState.settings.selected[kind] = id; },
     options: api.options,
-  }, document, () => 'https://x.com/compose/post');
+  }, document, () => view === 'reply' ? 'https://x.com/builder/status/1' : 'https://x.com/compose/post');
   window.addEventListener('pagehide', () => drafts.dispose(), { once: true });
 } else if (view === 'feed') {
   root.style.cssText = 'max-width:600px;margin:auto;padding:0;border-inline:1px solid var(--line)';

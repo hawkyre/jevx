@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile, access } from 'node:fs/promises';
+import { readFile, access, readdir } from 'node:fs/promises';
 
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 for (const browser of ['chrome', 'firefox']) {
@@ -18,6 +18,10 @@ for (const browser of ['chrome', 'firefox']) {
     assert.equal(png.readUInt32BE(20), size);
   }
   await access(`${root}/privacy.html`);
+  await access(`${root}/THIRD_PARTY_NOTICES.txt`);
+  const files = await readdir(root, { recursive: true });
+  assert(!files.some(path => /(^|\/)(?:design|tests|node_modules|\.git|\.env[^/]*)(?:\/|$)/.test(path)), 'Development or private files found in package');
+  assert.equal(manifest.externally_connectable, undefined);
   await access(`.output/${pkg.name}-${pkg.version}-${browser}.zip`);
 }
 await access(`.output/${pkg.name}-${pkg.version}-sources.zip`);
