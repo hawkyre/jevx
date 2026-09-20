@@ -27,7 +27,7 @@ describe('X post extraction', () => {
     const extracted = extractPost(element, 'https://x.com/home', 'en');
     expect(extracted?.text).toBe('');
     expect(extracted?.quotedText).toBe('The quoted post');
-    expect(extracted?.incomplete).toBe(true);
+    expect(extracted?.incomplete).toBe(false);
   });
   it('keeps unsupported locales unknown and excludes replies inside a thread', () => {
     expect(extractPost(article(post()), 'https://x.com/home', 'ja')?.kind).toBe('unknown');

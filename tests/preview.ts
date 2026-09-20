@@ -45,6 +45,7 @@ if (view === 'feed') {
     check: async post => ({ status: 'assessed', assessment: {
       decision: overrides.has(post.id) ? overrides.get(post.id) ? 'needs_context' : 'collapse' : ['1', '3'].includes(post.id) ? 'highlight' : 'collapse',
       reason: overrides.has(post.id) ? 'Your choice' : ['1', '3'].includes(post.id) ? 'Matches your interests' : 'Outside your interests',
+      relevance: overrides.has(post.id) ? null : ['1', '3'].includes(post.id) ? 5 : 1,
     } }),
     toggle: async enabled => { await api.toggle(enabled); await feed.refresh(); },
     override: async (post, show) => { overrides.set(post.id, show); await feed.refresh(); },

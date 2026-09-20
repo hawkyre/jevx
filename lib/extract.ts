@@ -35,7 +35,7 @@ export function extractPost(article: HTMLElement, pageUrl: string, language: str
   else if (!inThread && language.toLowerCase().startsWith('en')) kind = 'post';
   return {
     id: match[2], author: match[1], text, quotedText, createdAt, kind,
-    incomplete: !text || Boolean(article.querySelector('[data-testid="tweet-text-show-more-link"]')) ||
+    incomplete: (!text.trim() && !quotedText.trim()) || Boolean(article.querySelector('[data-testid="tweet-text-show-more-link"]')) ||
       Boolean(article.querySelector('[data-testid="tweetPhoto"], [data-testid="videoPlayer"]')),
   };
 }

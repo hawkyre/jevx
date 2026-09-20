@@ -1,4 +1,4 @@
-import { profileReady, type PublicState, type Settings } from './model';
+import { parseRanking, profileReady, type PublicState, type Settings } from './model';
 
 export interface UiApi {
   state(): Promise<PublicState>;
@@ -31,7 +31,7 @@ export async function mountPopup(root: HTMLElement, api: UiApi) {
     <header><h1>jevx<span class="brand-dot">.</span></h1><button class="quiet" id="settings">Settings ↗</button></header>
     <section class="intro"><h2>Find your next conversation.</h2><p>Recent posts. Relevant to you.</p></section>
     <div class="profile-line"><button id="profile" class="text-button">Your profile <span aria-hidden="true">→</span></button><span id="connection" class="muted"></span></div>
-    <section aria-labelledby="search-heading"><div class="section-title"><h3 id="search-heading">SEARCHES</h3><span class="muted">Past 60 minutes</span></div>
+    <section aria-labelledby="search-heading"><div class="section-title"><h3 id="search-heading">SEARCHES</h3><span class="muted">Newest first</span></div>
     <div id="search-list"></div>
     <form id="add-search" class="add-row"><input aria-label="New search" id="new-search" placeholder="Add a phrase or #hashtag" autocomplete="off" required><button class="quiet" type="submit" aria-label="Add search">+</button></form></section>
     <div class="actions"><button id="find" class="primary">Find posts <span aria-hidden="true">↗</span></button><p id="hint" class="hint"></p></div>
@@ -119,6 +119,12 @@ export async function mountOptions(root: HTMLElement, api: UiApi) {
       <label>Your interests <span class="muted">Required</span><textarea name="interests" rows="3" placeholder="The topics and problems you want to discuss" required></textarea></label>
       <label>Your audience<textarea name="audience" rows="2" placeholder="The people you want to reach"></textarea></label>
       <label>Leave out<textarea name="exclusions" rows="2" placeholder="Topics or kinds of posts you want to skip"></textarea></label>
+      <fieldset class="ranking-settings"><legend>Ranking</legend><p class="hint">Relevance and recency combine into a score from 1 to 5. Age never hides a post.</p>
+        <div class="ranking-fields"><label>Relevance weight<input name="relevanceWeight" type="number" min="1" max="5" step="1" required></label>
+        <label>Recency weight<input name="recencyWeight" type="number" min="1" max="5" step="1" required></label>
+        <label>Freshness window (minutes)<input name="freshnessMinutes" type="number" min="1" step="1" required></label></div>
+        <p class="hint">Recency falls from 5 to 1 across this window. Older posts keep a recency score of 1.</p>
+      </fieldset>
       <label class="consent"><input type="checkbox" name="consent"><span>Use Jev to assess posts.<small>Your profile and eligible post text are sent to TypeSafe. TypeSafe usage can incur charges.</small></span></label>
       <button type="submit" class="primary">Save profile</button>
     </form>
@@ -134,6 +140,9 @@ export async function mountOptions(root: HTMLElement, api: UiApi) {
     required<HTMLTextAreaElement>(form, `[name="${name}"]`).value = current.settings.profile[name];
   }
   required<HTMLInputElement>(form, '[name="consent"]').checked = current.settings.consent;
+  for (const name of ['relevanceWeight', 'recencyWeight', 'freshnessMinutes'] as const) {
+    required<HTMLInputElement>(form, `[name="${name}"]`).value = String(current.settings.ranking[name]);
+  }
 
   function connection() {
     required<HTMLElement>(root, '#connection-state').textContent = current.connected ? 'Connected' : 'Not connected';
@@ -150,7 +159,9 @@ export async function mountOptions(root: HTMLElement, api: UiApi) {
       for (const name of ['background', 'interests', 'audience', 'exclusions'] as const) {
         profile[name] = required<HTMLTextAreaElement>(form, `[name="${name}"]`).value.trim();
       }
-      current = await api.save({ ...latest.settings, profile, consent: required<HTMLInputElement>(form, '[name="consent"]').checked });
+      const ranking = parseRanking(Object.fromEntries(['relevanceWeight', 'recencyWeight', 'freshnessMinutes'].map(name =>
+        [name, required<HTMLInputElement>(form, `[name="${name}"]`).valueAsNumber])));
+      current = await api.save({ ...latest.settings, profile, ranking, consent: required<HTMLInputElement>(form, '[name="consent"]').checked });
       report(root, 'Profile saved. Open the extension to choose your searches.');
     } catch (error) { failure(root, error); }
     finally { submit.disabled = false; }

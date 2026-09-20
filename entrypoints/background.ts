@@ -2,13 +2,13 @@ import { browser } from 'wxt/browser';
 import { assess } from '../lib/jev';
 import { createCredentials } from '../lib/credentials';
 import {
-  DEFAULT_SETTINGS, MAX_POST_AGE_MS, MODEL, POLICY_VERSION, exclusion, isPost,
+  DEFAULT_SETTINGS, UNVALIDATED_CACHE_TTL_MS, MODEL, POLICY_VERSION, exclusion, isPost,
   isSearchUrl, parseSettings, profileReady, searchUrl,
   type Assessment, type Post, type PostResult, type PublicState, type Settings,
 } from '../lib/model';
 
 interface CacheEntry { expires: number; assessment: Assessment }
-interface Override { expires: number; show: boolean }
+interface Override { show: boolean }
 
 export default defineBackground(() => {
   const credentials = createCredentials(browser.storage.session);
@@ -54,7 +54,7 @@ export default defineBackground(() => {
   async function prune() {
     const entries = await browser.storage.session.get(null);
     const expired = Object.entries(entries).filter(([key, value]) =>
-      (key.startsWith('cache:') || key.startsWith('override:')) &&
+      key.startsWith('cache:') &&
       (value as CacheEntry).expires <= Date.now()).map(([key]) => key);
     if (expired.length) await browser.storage.session.remove(expired);
   }
@@ -69,8 +69,8 @@ export default defineBackground(() => {
     if (!config.consent || !profileReady(config.profile)) return { status: 'visible', reason: 'Set up your profile in jevx' };
     const session = await browser.storage.session.get(`override:${post.id}`);
     const override = session[`override:${post.id}`] as Override | undefined;
-    if (override && override.expires > Date.now()) {
-      return { status: 'assessed', assessment: { decision: override.show ? 'needs_context' : 'collapse', reason: 'Your choice' } };
+    if (override) {
+      return { status: 'assessed', assessment: { decision: override.show ? 'needs_context' : 'collapse', reason: 'Your choice', relevance: null } };
     }
     const key = await credentials.get();
     if (!key) return { status: 'visible', reason: 'Connect TypeSafe in settings' };
@@ -92,12 +92,16 @@ export default defineBackground(() => {
         const expiredAfterRequest = exclusion(post);
         if (expiredAfterRequest) return expiredAfterRequest;
         await prune();
-        await browser.storage.session.set({ [cacheKey]: { expires: post.createdAt + MAX_POST_AGE_MS, assessment } });
+        await browser.storage.session.set({ [cacheKey]: { expires: Date.now() + UNVALIDATED_CACHE_TTL_MS, assessment } });
         return { status: 'assessed', assessment };
       } catch (error) {
         if (signal.aborted) return { status: 'visible', reason: 'Settings changed' };
-        blocked = error instanceof Error && error.name !== 'TimeoutError' && error.name !== 'TypeError'
-          ? error.message : 'Could not check. Pause, then resume to retry';
+        const requestError = error instanceof Error || error instanceof DOMException ? error : null;
+        blocked = requestError?.name === 'TimeoutError'
+          ? 'TypeSafe timed out. Pause, then resume to retry'
+          : requestError?.name === 'TypeError'
+            ? 'Could not reach TypeSafe. Pause, then resume to retry'
+            : requestError?.message ?? 'Could not check. Pause, then resume to retry';
         return { status: 'visible', reason: blocked };
       }
     });
@@ -158,7 +162,7 @@ export default defineBackground(() => {
       return state();
     }
     if (message.type === 'override' && fromX && isPost(message.post) && typeof message.show === 'boolean') {
-      await browser.storage.session.set({ [`override:${message.post.id}`]: { expires: message.post.createdAt + MAX_POST_AGE_MS, show: message.show } });
+      await browser.storage.session.set({ [`override:${message.post.id}`]: { show: message.show } });
       await broadcast();
       return null;
     }

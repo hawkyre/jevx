@@ -32,7 +32,7 @@ vi.stubGlobal('defineBackground', (main: () => void) => main);
 const background = (await import('../entrypoints/background')).default as unknown as () => void;
 const extension = { id: 'jevx-test', url: 'chrome-extension://jevx-test/options.html', frameId: 0 };
 const x = { id: 'jevx-test', url: 'https://x.com/home', frameId: 0 };
-const response = () => new Response(JSON.stringify({ answers: { visibility: { type: 'choice', choice: 'highlight' } } }), { status: 200 });
+const response = () => new Response(JSON.stringify({ answers: { visibility: { type: 'choice', choice: 'highlight' }, relevance: { type: 'choice', choice: '5' } } }), { status: 200 });
 
 beforeEach(() => {
   vi.stubGlobal('indexedDB', new IDBFactory());
@@ -121,6 +121,39 @@ describe('background security and session state', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
     await mocks.call({ type: 'assess', post: value }, x);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('assesses quote-only text and caches assessments of old posts', async () => {
+    const value = post({ text: '', quotedText: 'How do you help learners retain vocabulary?', createdAt: 0 });
+    const result = await mocks.call({ type: 'assess', post: value }, x);
+    expect(result.value).toMatchObject({ status: 'assessed', assessment: { relevance: 5 } });
+    const request = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string);
+    expect(request.state.post.quotedText).toBe(value.quotedText);
+    await mocks.call({ type: 'assess', post: value }, x);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('does not request an assessment when neither body nor quote has text', async () => {
+    const result = await mocks.call({ type: 'assess', post: post({ text: '', quotedText: '' }) }, x);
+    expect(result.value).toEqual({ status: 'visible', reason: 'No text to assess' });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('reuses relevance after ranking weights change', async () => {
+    const value = post();
+    await mocks.call({ type: 'assess', post: value }, x);
+    const settings = readyState().settings;
+    settings.ranking = { ...settings.ranking, relevanceWeight: 1, recencyWeight: 3 };
+    await mocks.call({ type: 'settings', settings }, extension);
+    await mocks.call({ type: 'assess', post: value }, x);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('distinguishes HTTP service errors from missing post context', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 503 }));
+    const result = await mocks.call({ type: 'assess', post: post({ quotedText: 'A quote' }) }, x);
+    expect(result.value).toMatchObject({ status: 'visible', reason: expect.stringContaining('HTTP 503') });
+  });
+  it('identifies request timeouts', async () => {
+    vi.mocked(fetch).mockRejectedValue(new DOMException('Timeout', 'TimeoutError'));
+    const result = await mocks.call({ type: 'assess', post: post() }, x);
+    expect(result.value).toMatchObject({ status: 'visible', reason: expect.stringContaining('timed out') });
   });
   it('reassesses after a profile edit', async () => {
     const value = post();

@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startFeed, type FeedApi } from '../lib/feed';
-import { MAX_POST_AGE_MS, type PostResult } from '../lib/model';
+import { DEFAULT_FRESHNESS_MINUTES, type PostResult } from '../lib/model';
 import { article, post, readyState } from './fixtures';
 
 let stop: (() => void) | undefined;
 afterEach(() => { stop?.(); document.body.replaceChildren(); vi.useRealTimers(); });
 
-function setup(check = vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'assessed', assessment: { decision: 'collapse', reason: 'Outside your interests' } })) {
+function setup(check = vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'assessed', assessment: { decision: 'collapse', reason: 'Outside your interests', relevance: 1 } })) {
   document.documentElement.lang = 'en';
   document.body.innerHTML = '<main data-testid="primaryColumn"></main>';
   const state = readyState();
@@ -20,9 +20,9 @@ describe('feed behavior', () => {
   it('filters newly loaded Home posts without opening searches', async () => {
     const { main, api } = setup();
     const first = article(post()); main.append(first);
-    await vi.waitFor(() => expect(first.classList.contains('jevx-collapsed')).toBe(true));
+    await vi.waitFor(() => expect(first.matches('[data-jevx-state="collapsed"]')).toBe(true));
     const next = article(post({ id: '222' })); main.append(next);
-    await vi.waitFor(() => expect(next.classList.contains('jevx-collapsed')).toBe(true));
+    await vi.waitFor(() => expect(next.matches('[data-jevx-state="collapsed"]')).toBe(true));
     expect(api.check).toHaveBeenCalledTimes(2);
     expect(api.explore).not.toHaveBeenCalled();
     const settings = [...main.querySelectorAll<HTMLButtonElement>('[data-jevx-ui="toolbar"] button')].find(button => button.textContent === 'Settings');
@@ -32,60 +32,91 @@ describe('feed behavior', () => {
   it('keeps filtering after Home replaces its timeline', async () => {
     const { main, api } = setup();
     const first = article(post()); main.append(first);
-    await vi.waitFor(() => expect(first.classList.contains('jevx-collapsed')).toBe(true));
+    await vi.waitFor(() => expect(first.matches('[data-jevx-state="collapsed"]')).toBe(true));
     const following = article(post({ id: '333' }));
     main.replaceChildren(following);
-    await vi.waitFor(() => expect(following.classList.contains('jevx-collapsed')).toBe(true));
+    await vi.waitFor(() => expect(following.matches('[data-jevx-state="collapsed"]')).toBe(true));
     expect(main.querySelectorAll('[data-jevx-ui="toolbar"]')).toHaveLength(1);
     expect(api.check).toHaveBeenCalledTimes(2);
   });
   it('collapses irrelevant posts, lets the reader reveal them, and restores on pause', async () => {
     const { main, feed, state, api } = setup();
     const element = article(post()); main.append(element);
-    await vi.waitFor(() => expect(element.classList.contains('jevx-collapsed')).toBe(true));
+    await vi.waitFor(() => expect(element.matches('[data-jevx-state="collapsed"]')).toBe(true));
     expect(element.getAttribute('aria-label')).toBe('Filtered post');
     element.querySelector<HTMLButtonElement>('[data-jevx-ui] button')!.click();
-    expect(element.classList.contains('jevx-collapsed')).toBe(false);
+    expect(element.matches('[data-jevx-state="collapsed"]')).toBe(false);
     expect(api.override).toHaveBeenCalledWith(expect.objectContaining({ id: '123456789' }), true);
     state.settings.enabled = false;
     await feed.refresh();
     expect(element.querySelector('[data-jevx-ui]')).toBeNull();
     expect(element.getAttribute('aria-labelledby')).toContain('author-');
   });
-  it('does not send replies or expired posts to Jev', async () => {
+  it('excludes replies but assesses older posts', async () => {
     const { main, api } = setup();
     const reply = article(post(), true);
-    const old = article(post({ id: '456', createdAt: Date.now() - MAX_POST_AGE_MS }));
+    const old = article(post({ id: '456', createdAt: Date.now() - DEFAULT_FRESHNESS_MINUTES * 60 * 1000 }));
     main.append(reply, old);
-    await vi.waitFor(() => expect(old.classList.contains('jevx-collapsed')).toBe(true));
-    expect(reply.classList.contains('jevx-collapsed')).toBe(true);
-    expect(api.check).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(old.matches('[data-jevx-state="collapsed"]')).toBe(true));
+    expect(reply.matches('[data-jevx-state="collapsed"]')).toBe(true);
+    expect(api.check).toHaveBeenCalledTimes(1);
+    expect(api.check).toHaveBeenCalledWith(expect.objectContaining({ id: '456' }));
   });
   it('never applies a delayed assessment to a recycled post element', async () => {
     let resolve!: (value: PostResult) => void;
     const check = vi.fn<FeedApi['check']>().mockImplementationOnce(() => new Promise(done => { resolve = done; }))
-      .mockResolvedValue({ status: 'assessed', assessment: { decision: 'highlight', reason: 'Matches your interests' } });
+      .mockResolvedValue({ status: 'assessed', assessment: { decision: 'highlight', reason: 'Matches your interests', relevance: 5 } });
     const { main } = setup(check);
     const element = article(post()); main.append(element);
     await vi.waitFor(() => expect(check).toHaveBeenCalledTimes(1));
     element.innerHTML = article(post({ id: '999', text: 'A different post' })).innerHTML;
-    resolve({ status: 'assessed', assessment: { decision: 'collapse', reason: 'Outside your interests' } });
-    await vi.waitFor(() => expect(element.classList.contains('jevx-highlight')).toBe(true));
-    expect(element.classList.contains('jevx-collapsed')).toBe(false);
+    resolve({ status: 'assessed', assessment: { decision: 'collapse', reason: 'Outside your interests', relevance: 1 } });
+    await vi.waitFor(() => expect(element.matches('[data-jevx-state="highlight"]')).toBe(true));
+    expect(element.matches('[data-jevx-state="collapsed"]')).toBe(false);
   });
   it('leaves failures visible', async () => {
     const { main } = setup(vi.fn<FeedApi['check']>().mockRejectedValue(new Error('Offline')));
     const element = article(post()); main.append(element);
     await vi.waitFor(() => expect(element.textContent).toContain('Could not check'));
-    expect(element.classList.contains('jevx-collapsed')).toBe(false);
+    expect(element.matches('[data-jevx-state="collapsed"]')).toBe(false);
   });
-  it('expires a highlighted post while the page remains open', async () => {
+  it('shows the reload instruction for disconnected extension scripts', async () => {
+    const { main } = setup(vi.fn<FeedApi['check']>().mockRejectedValue(new Error('Extension updated. Reload this X tab.')));
+    const element = article(post()); main.append(element);
+    await vi.waitFor(() => expect(element.textContent).toContain('Reload this X tab'));
+    expect(element.matches('[data-jevx-state="collapsed"]')).toBe(false);
+  });
+  it('lowers recency without collapsing a highlighted post', async () => {
     vi.useFakeTimers();
-    const { main } = setup(vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'assessed', assessment: { decision: 'highlight', reason: 'Matches your interests' } }));
-    const element = article(post({ createdAt: Date.now() - MAX_POST_AGE_MS + 100 })); main.append(element);
+    const { main } = setup(vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'assessed', assessment: { decision: 'highlight', reason: 'Matches your interests', relevance: 5 } }));
+    const firstStep = DEFAULT_FRESHNESS_MINUTES * 60 * 1000 / 4;
+    const element = article(post({ createdAt: Date.now() - firstStep + 100 })); main.append(element);
     await vi.advanceTimersByTimeAsync(0);
-    expect(element.classList.contains('jevx-highlight')).toBe(true);
+    expect(element.matches('[data-jevx-state="highlight"]')).toBe(true);
+    expect(element.querySelector('[data-jevx-score]')?.getAttribute('title')).toContain('Recency 5/5');
     await vi.advanceTimersByTimeAsync(100);
-    expect(element.classList.contains('jevx-collapsed')).toBe(true);
+    expect(element.matches('[data-jevx-state="highlight"]')).toBe(true);
+    expect(element.querySelector('[data-jevx-score]')?.getAttribute('title')).toContain('Recency 4/5');
+  });
+  it('retains collapse styling when X replaces its own CSS classes', async () => {
+    const { main } = setup();
+    const element = article(post()); main.append(element);
+    await vi.waitFor(() => expect(element.matches('[data-jevx-state="collapsed"]')).toBe(true));
+    element.className = 'new-x-render-classes';
+    expect(element.matches('[data-jevx-state="collapsed"]')).toBe(true);
+    expect(element.querySelector('[data-jevx-ui]')?.textContent).toContain('Filtered post');
+  });
+  it('ranks older relevant posts without moving X’s post elements', async () => {
+    const { main } = setup(vi.fn<FeedApi['check']>().mockImplementation(async value => ({ status: 'assessed', assessment: {
+      decision: 'highlight', reason: 'Matches your interests', relevance: value.id === '111' ? 3 : 5,
+    } })));
+    const fresh = article(post({ id: '111' }));
+    const old = article(post({ id: '222', createdAt: Date.now() - DEFAULT_FRESHNESS_MINUTES * 60 * 1000 * 4 }));
+    main.append(fresh, old);
+    await vi.waitFor(() => expect(old.matches('[data-jevx-state="highlight"]')).toBe(true));
+    [...main.querySelectorAll<HTMLButtonElement>('[data-jevx-ui="toolbar"] button')].find(button => button.textContent === 'Top matches')!.click();
+    expect([...main.querySelectorAll('[data-jevx-ui="ranking"] a')].map(link => link.getAttribute('href')))
+      .toEqual(['https://x.com/builder/status/222', 'https://x.com/builder/status/111']);
+    expect([...main.querySelectorAll('article')]).toEqual([fresh, old]);
   });
 });

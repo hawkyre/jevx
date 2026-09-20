@@ -62,6 +62,12 @@ textarea { resize: vertical; font-weight: 400; min-height: 64px; }
 .consent input { margin-top: var(--space); }
 .consent small { display: block; font-size: 11px; color: var(--muted); margin-top: var(--space); }
 .connection-section { border-top: 1px solid var(--line); padding-top: calc(var(--space) * 7); margin-top: calc(var(--space) * 8); }
+.ranking-settings { margin: 0; padding: 0; border: 0; }
+.ranking-settings legend { font-size: 12px; font-weight: 500; }
+.ranking-fields { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--space) * 4); margin-top: calc(var(--space) * 3); }
+.ranking-fields label { display: grid; gap: calc(var(--space) * 2); font-size: 12px; }
+.ranking-fields label:last-child { grid-column: 1 / -1; }
+.ranking-fields input { min-width: 0; width: 100%; padding: calc(var(--space) * 2); background: var(--field); border: 1px solid var(--line); }
 .key-row { display: flex; gap: calc(var(--space) * 2); margin-top: calc(var(--space) * 2); }
 .key-row input { min-width: 0; }
 .secondary { background: var(--line); padding: calc(var(--space) * 3) calc(var(--space) * 4); }

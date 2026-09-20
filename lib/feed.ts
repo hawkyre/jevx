@@ -1,5 +1,6 @@
 import { extractPost, POST_SELECTOR } from './extract';
-import { MAX_POST_AGE_MS, exclusion, type Post, type PostResult, type PublicState } from './model';
+import { exclusion, isScore, type Post, type PostResult, type PublicState } from './model';
+import { compareScores, nextScoreChange, scorePost, type PostScore } from './ranking';
 
 export interface FeedApi {
   state(): Promise<PublicState>;
@@ -35,12 +36,14 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   let disposed = false;
   let processing = false;
   let showAll = false;
+  let showRanking = false;
   let expiry: ReturnType<typeof setTimeout> | undefined;
   let toolbar: HTMLElement | undefined;
+  let rankingPanel: HTMLElement | undefined;
   let previousUrl = '';
 
   function cleanup(article: HTMLElement) {
-    article.classList.remove('jevx-collapsed', 'jevx-highlight');
+    delete article.dataset.jevxState;
     article.querySelectorAll(':scope > [data-jevx-ui]').forEach(node => node.remove());
     const original = article.dataset.jevxOriginalLabel;
     if (original !== undefined) {
@@ -62,12 +65,12 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
     ui.className = 'jevx-post-controls';
     ui.addEventListener('click', event => event.stopPropagation());
     if (collapse && !entry.shown) {
-      article.classList.add('jevx-collapsed');
+      article.dataset.jevxState = 'collapsed';
       article.dataset.jevxOriginalLabel = article.getAttribute('aria-labelledby') ?? '';
       article.removeAttribute('aria-labelledby');
       article.setAttribute('aria-label', 'Filtered post');
       const label = document.createElement('span');
-      label.textContent = 'Filtered post';
+      label.textContent = result?.status === 'excluded' ? result.reason : 'Filtered post';
       label.title = reason ?? 'Outside your interests';
       ui.append(label, button('Show', () => {
         entry.shown = true;
@@ -75,7 +78,10 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
         if (result?.status === 'assessed') void api.override(entry.post, true).catch(showError);
       }));
     } else if (result?.status === 'assessed' && result.assessment.decision === 'highlight') {
-      article.classList.add('jevx-highlight');
+      article.dataset.jevxState = 'highlight';
+      const score = document.createElement('span');
+      score.dataset.jevxScore = '';
+      ui.append(score);
       const details = document.createElement('details');
       const summary = document.createElement('summary');
       summary.textContent = 'Explore';
@@ -110,6 +116,55 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
       ui.append(label);
     }
     article.append(ui);
+    updateScore(article, entry);
+  }
+
+  function entryScore(entry: Entry): PostScore | null {
+    const result = entry.result;
+    return state && result?.status === 'assessed' && result.assessment.decision === 'highlight' && isScore(result.assessment.relevance)
+      ? scorePost(result.assessment.relevance, entry.post.createdAt, state.settings.ranking) : null;
+  }
+
+  function updateScore(article: HTMLElement, entry: Entry) {
+    const badge = article.querySelector<HTMLElement>('[data-jevx-score]');
+    const score = entryScore(entry);
+    if (!badge || !score || !state) return;
+    badge.textContent = `${score.total}/5`;
+    badge.title = `Relevance ${score.relevance}/5 · Recency ${score.recency}/5 · Weight ${state.settings.ranking.relevanceWeight}:${state.settings.ranking.recencyWeight}`;
+    badge.setAttribute('aria-label', `Score ${score.total} of 5. ${badge.title}`);
+  }
+
+  function renderRanking() {
+    rankingPanel?.remove();
+    if (!showRanking || !toolbar?.isConnected) return;
+    rankingPanel = document.createElement('section');
+    rankingPanel.dataset.jevxUi = 'ranking';
+    rankingPanel.className = 'jevx-ranking';
+    rankingPanel.setAttribute('aria-label', 'Top matches');
+    const heading = document.createElement('p');
+    heading.textContent = 'Top matches · Loaded posts in this tab';
+    rankingPanel.append(heading);
+    const matches = new Map<string, { post: Post; score: PostScore; createdAt: number }>();
+    if (state?.settings.enabled) for (const [article, entry] of entries) {
+      const score = entryScore(entry);
+      if (article.isConnected && score) matches.set(entry.post.id, { post: entry.post, createdAt: entry.post.createdAt, score });
+    }
+    const sorted = [...matches.values()].sort((a, b) => compareScores(a, b, state!.settings.ranking));
+    if (!sorted.length) {
+      const empty = document.createElement('p');
+      empty.textContent = 'Matches appear here as posts are checked.';
+      rankingPanel.append(empty);
+    }
+    for (const match of sorted) {
+      const link = document.createElement('a');
+      link.href = `https://x.com/${match.post.author}/status/${match.post.id}`;
+      link.target = '_blank'; link.rel = 'noopener noreferrer';
+      const score = document.createElement('strong'); score.textContent = `${match.score.total}/5`;
+      const text = document.createElement('span'); text.textContent = match.post.text || match.post.quotedText;
+      const author = document.createElement('small'); author.textContent = `@${match.post.author}`;
+      link.append(score, text, author); rankingPanel.append(link);
+    }
+    toolbar.after(rankingPanel);
   }
 
   function showError(error: unknown) {
@@ -119,7 +174,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
 
   function renderToolbar() {
     if (!state) return;
-    if (!root.querySelector(POST_SELECTOR)) { toolbar?.remove(); return; }
+    if (!root.querySelector(POST_SELECTOR)) { toolbar?.remove(); rankingPanel?.remove(); return; }
     const column = root.querySelector('[data-testid="primaryColumn"]') ?? root.querySelector('main');
     if (!column) return;
     toolbar?.remove();
@@ -143,21 +198,24 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
     status.setAttribute('role', 'status');
     status.className = 'jevx-status';
     const settings = button('Settings', () => { void api.options().catch(showError); });
-    toolbar.append(name, toggle, reveal, settings, status);
+    const ranking = button('Top matches', () => { showRanking = !showRanking; renderToolbar(); });
+    ranking.setAttribute('aria-expanded', String(showRanking));
+    toolbar.append(name, toggle, reveal, ranking, settings, status);
     column.prepend(toolbar);
+    renderRanking();
   }
 
-  function updateExpiry() {
+  function scheduleScoreUpdate() {
     clearTimeout(expiry);
+    if (!state) return;
     const now = Date.now();
-    const deadlines = [...entries.values()].map(entry => entry.post.createdAt + MAX_POST_AGE_MS).filter(time => time > now);
+    const deadlines = [...entries.values()].map(entry => nextScoreChange(entry.post.createdAt, state!.settings.ranking, now))
+      .filter((time): time is number => time !== null && time > now);
     if (deadlines.length) expiry = setTimeout(() => {
-      for (const [article, entry] of entries) {
-        const excluded = exclusion(entry.post);
-        if (excluded) { entry.result = excluded; render(article, entry); }
-      }
-      updateExpiry();
-    }, Math.min(...deadlines) - now);
+      for (const [article, entry] of entries) updateScore(article, entry);
+      renderRanking();
+      scheduleScoreUpdate();
+    }, Math.min(Math.min(...deadlines) - now, 2 ** 31 - 1));
   }
 
   async function process() {
@@ -172,7 +230,10 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
         const requestedGeneration = generation;
         let result: PostResult;
         try { result = exclusion(entry.post) ?? await api.check(entry.post); }
-        catch { result = { status: 'visible', reason: 'Could not check. Pause, then resume to retry' }; }
+        catch (error) {
+          result = { status: 'visible', reason: error instanceof Error && error.message.includes('Reload this X tab')
+            ? error.message : 'Could not check. Pause, then resume to retry' };
+        }
         if (disposed) break;
         if (requestedGeneration !== generation || entries.get(article) !== entry) continue;
         const freshPost = extractPost(article, locationUrl(), root.documentElement.lang);
@@ -180,6 +241,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
         entry.checking = false;
         entry.result = exclusion(entry.post) ?? result;
         render(article, entry);
+        renderRanking();
       }
     } finally {
       processing = false;
@@ -212,7 +274,8 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
       entry.result = exclusion(post) ?? undefined;
       render(article, entry);
     }
-    updateExpiry();
+    scheduleScoreUpdate();
+    renderRanking();
     void process();
   }
 
@@ -247,7 +310,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   return {
     refresh,
     dispose() {
-      disposed = true; observer.disconnect(); clearTimeout(expiry); toolbar?.remove();
+      disposed = true; observer.disconnect(); clearTimeout(expiry); toolbar?.remove(); rankingPanel?.remove();
       for (const article of entries.keys()) cleanup(article);
       entries.clear();
     },

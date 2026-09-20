@@ -1,15 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { exclusion, isFresh, isPost, isSearchUrl, MAX_POST_AGE_MS, parseSettings, searchUrl } from '../lib/model';
+import { DEFAULT_RANKING, exclusion, isPost, isSearchUrl, parseRanking, parseSettings, searchUrl } from '../lib/model';
 import { parseAssessment, requestBody } from '../lib/jev';
 import { post, readyState } from './fixtures';
 
 describe('freshness and type rules', () => {
-  it('expires at exactly 60 minutes, not one millisecond before', () => {
+  it('does not exclude old posts and leaves invalid dates visible', () => {
     const now = Date.now();
-    expect(isFresh(post({ createdAt: now - MAX_POST_AGE_MS + 1 }), now)).toBe(true);
-    expect(isFresh(post({ createdAt: now - MAX_POST_AGE_MS }), now)).toBe(false);
-    expect(isFresh(post({ createdAt: now + 1 }), now)).toBe(false);
+    expect(exclusion(post({ createdAt: 0 }), now)).toBeNull();
+    expect(exclusion(post({ createdAt: now + 1 }), now)?.status).toBe('visible');
     expect(exclusion(post({ createdAt: NaN }), now)?.status).toBe('visible');
+  });
+  it('leaves image-only posts visible but accepts text in a quote', () => {
+    expect(exclusion(post({ text: ' ', quotedText: '' }))).toEqual({ status: 'visible', reason: 'No text to assess' });
+    expect(exclusion(post({ text: '', quotedText: 'Useful quoted text' }))).toBeNull();
+  });
+  it('adds ranking defaults to existing profiles and rejects invalid settings', () => {
+    const { ranking: _ranking, ...old } = readyState().settings;
+    expect(parseSettings(old).ranking).toEqual(DEFAULT_RANKING);
+    expect(() => parseRanking({ ...DEFAULT_RANKING, relevanceWeight: 0 })).toThrow();
+    expect(() => parseRanking({ ...DEFAULT_RANKING, freshnessMinutes: NaN })).toThrow();
   });
   it('excludes replies and leaves unknown kinds visible', () => {
     expect(exclusion(post({ kind: 'reply' }))).toEqual({ status: 'excluded', reason: 'Reply' });
@@ -45,7 +54,7 @@ describe('Jev contract', () => {
   });
   it('rejects malformed or unknown choices instead of collapsing', () => {
     for (const value of [null, {}, { answers: { visibility: { type: 'choice', choice: 'yes' } } }]) expect(() => parseAssessment(value)).toThrow();
-    expect(parseAssessment({ answers: { visibility: { type: 'choice', choice: 'highlight' }, reason: { type: 'choice', choice: 'experience' } } }))
-      .toEqual({ decision: 'highlight', reason: 'Matches your experience' });
+    expect(parseAssessment({ answers: { visibility: { type: 'choice', choice: 'highlight' }, reason: { type: 'choice', choice: 'experience' }, relevance: { type: 'choice', choice: '5' } } }))
+      .toEqual({ decision: 'highlight', reason: 'Matches your experience', relevance: 5 });
   });
 });
