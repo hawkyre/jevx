@@ -73,4 +73,18 @@ textarea { resize: vertical; font-weight: 400; min-height: 64px; }
 .secondary { background: var(--line); padding: calc(var(--space) * 3) calc(var(--space) * 4); }
 .text-link { display: inline-block; margin-top: calc(var(--space) * 3); color: var(--ink); font-size: 12px; text-decoration: none; }
 [hidden] { display: none !important; }
+.draft-settings > .hint { margin-bottom: 24px; }
+.draft-profile-editor { border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.draft-profile-editor > summary { cursor: pointer; font-size: 13px; font-weight: 500; }
+.draft-profile-editor > summary span { float: right; }
+.draft-profile-tools { display: flex; gap: 8px; margin-block: 20px; }
+.draft-settings input:not([type="checkbox"]), .draft-settings select { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--field); color: var(--ink); font: inherit; }
+.draft-profile-tools > select { flex: 1; }
+.draft-profile-tools > button { background: none; padding: 4px; font-size: 11px; color: var(--muted); }
+.draft-profile-editor > label, .draft-axis-fields > label:not(.switch-label) { display: grid; gap: 8px; font-size: 12px; }
+.draft-axis-editor { border-top: 1px solid var(--line); padding-block: 14px; }
+[data-axes] { margin-block: 20px 8px; }
+.draft-axis-editor > summary { cursor: pointer; font-size: 12px; }
+.draft-axis-fields { display: grid; gap: 16px; padding-top: 20px; }
+.draft-axis-fields .text-button { color: var(--muted); font-size: 11px; }
 @media (max-width: 420px) { .options main { margin-block: calc(var(--space) * 4); padding-inline: calc(var(--space) * 6); } }

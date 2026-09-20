@@ -1,6 +1,8 @@
 import { browser } from 'wxt/browser';
 import { assess } from '../lib/jev';
 import { createCredentials } from '../lib/credentials';
+import { createDraftScorer } from '../lib/draft-jev';
+import { isDraftInput, isDraftKind, parseDraftSettings } from '../lib/draft-model';
 import {
   DEFAULT_SETTINGS, UNVALIDATED_CACHE_TTL_MS, MODEL, POLICY_VERSION, exclusion, isPost,
   isSearchUrl, parseSettings, profileReady, searchUrl,
@@ -12,6 +14,8 @@ interface Override { show: boolean }
 
 export default defineBackground(() => {
   const credentials = createCredentials(browser.storage.session);
+  const draftScorer = createDraftScorer(browser.storage.session);
+  let draftRevision = 0;
   let revision = 0;
   let controller = new AbortController();
   let blocked: string | null = null;
@@ -30,15 +34,17 @@ export default defineBackground(() => {
     return { settings: config, connected: Boolean(key) };
   }
 
-  async function broadcast() {
+  async function broadcast(type = 'changed') {
     const tabs = await browser.tabs.query({ url: 'https://x.com/*' });
     await Promise.allSettled([
-      browser.runtime.sendMessage({ type: 'changed' }),
-      ...tabs.flatMap(tab => tab.id === undefined ? [] : [browser.tabs.sendMessage(tab.id, { type: 'changed' })]),
+      browser.runtime.sendMessage({ type }),
+      ...tabs.flatMap(tab => tab.id === undefined ? [] : [browser.tabs.sendMessage(tab.id, { type })]),
     ]);
   }
 
   function invalidate() {
+    draftRevision++;
+    draftScorer.invalidate();
     revision++;
     controller.abort();
     controller = new AbortController();
@@ -149,6 +155,32 @@ export default defineBackground(() => {
     if (!raw || typeof raw !== 'object') throw new Error('Invalid request');
     const message = raw as Record<string, unknown>;
     if (message.type === 'state') return state();
+    if (message.type === 'draft-state') return {
+      settings: parseDraftSettings((await browser.storage.local.get('draftSettings')).draftSettings),
+      connected: Boolean(await credentials.get()),
+    };
+    if (message.type === 'assess-draft' && fromX && isDraftInput(message.draft)) {
+      const draft = message.draft;
+      if (/^\/notifications(?:\/|$)/.test(new URL(sender.url).pathname)) throw new Error('Draft scoring is off in Notifications');
+      const requestedRevision = draftRevision;
+      const config = parseDraftSettings((await browser.storage.local.get('draftSettings')).draftSettings);
+      if (!config.consent) throw new Error('Enable draft scoring in Settings');
+      const selected = config.profiles.find(p => p.id === draft.profileId);
+      if (!selected) throw new Error('Unknown draft profile');
+      const user = await settings();
+      const key = await credentials.get();
+      if (requestedRevision !== draftRevision) throw new Error('Draft settings changed');
+      if (!key) throw new Error('Connect TypeSafe in Settings');
+      return draftScorer.check(draft, user.profile, selected.axes.filter(a => a.enabled), key);
+    }
+    if (message.type === 'select-draft-profile' && fromX && isDraftKind(message.kind) && typeof message.profileId === 'string') {
+      const config = parseDraftSettings((await browser.storage.local.get('draftSettings')).draftSettings);
+      if (!config.profiles.some(p => p.id === message.profileId)) throw new Error('Unknown draft profile');
+      config.selected[message.kind] = message.profileId;
+      await browser.storage.local.set({ draftSettings: config });
+      await broadcast('draft-changed');
+      return null;
+    }
     if (message.type === 'options') {
       await browser.runtime.openOptionsPage();
       return null;
@@ -172,6 +204,14 @@ export default defineBackground(() => {
       return open([message.query]);
     }
     if (!extensionPage) throw new Error('Open extension settings for this action');
+    if (message.type === 'draft-settings') {
+      const config = parseDraftSettings(message.settings);
+      draftRevision++;
+      draftScorer.invalidate();
+      await browser.storage.local.set({ draftSettings: config });
+      await broadcast('draft-changed');
+      return { settings: config, connected: Boolean(await credentials.get()) };
+    }
     if (message.type === 'settings') {
       const config = parseSettings(message.settings);
       invalidate();
@@ -199,9 +239,9 @@ export default defineBackground(() => {
   }
 
   browser.runtime.onMessage.addListener((message: unknown, sender, respond) => {
-    if ((message as { type?: string } | null)?.type === 'changed') return false;
+    if (['changed', 'draft-changed'].includes((message as { type?: string } | null)?.type ?? '')) return false;
     const type = (message as { type?: string } | null)?.type;
-    const mutates = ['settings', 'toggle', 'connect', 'disconnect', 'override'].includes(type ?? '');
+    const mutates = ['settings', 'toggle', 'connect', 'disconnect', 'override', 'draft-settings', 'select-draft-profile'].includes(type ?? '');
     const result = mutates ? mutations.then(() => handle(message, sender)) : handle(message, sender);
     if (mutates) mutations = result.catch(() => undefined);
     void result.then(value => respond({ ok: true, value }))

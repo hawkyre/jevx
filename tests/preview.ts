@@ -1,8 +1,12 @@
 import { mountOptions, mountPopup, type UiApi } from '../lib/ui';
 import { startFeed } from '../lib/feed';
+import { startDraftScoring } from '../lib/draft-composer';
+import { mountDraftSettings } from '../lib/draft-settings-ui';
+import { defaultDraftSettings } from '../lib/draft-model';
 import { article, post, readyState } from './fixtures';
 import '../assets/ui.css';
 import '../entrypoints/feed.content/style.css';
+import '../entrypoints/feed.content/draft.css';
 
 const state = readyState();
 state.settings.searches = [
@@ -21,7 +25,22 @@ const api: UiApi = {
   options: async () => { location.search = '?view=options'; },
 };
 const root = document.querySelector<HTMLElement>('#app')!;
-if (view === 'feed') {
+const draftState = { settings: defaultDraftSettings(), connected: true };
+if (view === 'draft') {
+  root.style.cssText = 'max-width:600px;margin:64px auto;padding:32px;border:1px solid var(--line);border-radius:20px';
+  root.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px"><h1>jevx<span class="brand-dot">.</span></h1><span class="muted">Composer preview · Sample scores</span></div>
+    <div data-testid="quoteTweet" role="link" style="border-left:2px solid var(--line);padding:0 0 0 16px;margin-bottom:24px"><span class="muted">@builder</span><p data-testid="tweetText">We shipped a new vocabulary app. How do you know whether practice transfers to real conversations?</p></div>
+    <div contenteditable="true" role="textbox" aria-label="Draft text" data-testid="tweetTextarea_0" style="min-height:140px;outline:none;font-size:19px;line-height:1.6">We tested recall a week after practice, using words in new sentences. Session streaks looked great; transfer was the real test. What are you measuring today?</div>
+    <div style="display:flex;justify-content:flex-end;margin-top:24px"><button data-testid="tweetButton" disabled class="primary" style="width:auto;border-radius:24px;padding:8px 24px">Post</button></div>`;
+  draftState.settings.consent = true;
+  const drafts = startDraftScoring({
+    state: async () => structuredClone(draftState),
+    check: async draft => ({ scores: Object.fromEntries(draftState.settings.profiles.find(p => p.id === draft.profileId)!.axes.filter(a => a.enabled).map(a => [a.id, a.id === 'specificity' ? 3 : 4])) }),
+    select: async (kind, id) => { draftState.settings.selected[kind] = id; },
+    options: api.options,
+  }, document, () => 'https://x.com/compose/post');
+  window.addEventListener('pagehide', () => drafts.dispose(), { once: true });
+} else if (view === 'feed') {
   root.style.cssText = 'max-width:600px;margin:auto;padding:0;border-inline:1px solid var(--line)';
   root.dataset.testid = 'primaryColumn';
   for (const [index, text] of [
@@ -55,6 +74,7 @@ if (view === 'feed') {
 } else if (view === 'options') {
   document.body.className = 'options';
   await mountOptions(root, api);
+  await mountDraftSettings(root, { state: async () => structuredClone(draftState), save: async settings => { draftState.settings = settings; return structuredClone(draftState); } });
 } else {
   document.body.className = 'popup';
   await mountPopup(root, api);

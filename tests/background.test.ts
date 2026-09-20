@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { post, readyState } from './fixtures';
+import { defaultDraftSettings } from '../lib/draft-model';
 
 const mocks = vi.hoisted(() => {
   type Sender = { id: string; url: string; frameId: number };
@@ -46,6 +47,23 @@ beforeEach(() => {
 });
 
 describe('background security and session state', () => {
+  it('requires separate draft consent and prevents X from granting it', async () => {
+    const draft = { text: 'Private draft', kind: 'post', parentText: '', contextMissing: false, hasMedia: false, profileId: 'conversation' };
+    expect((await mocks.call({ type: 'assess-draft', draft }, x)).ok).toBe(false);
+    const settings = defaultDraftSettings(); settings.consent = true;
+    expect((await mocks.call({ type: 'draft-settings', settings }, x)).ok).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+    expect((await mocks.call({ type: 'draft-settings', settings }, extension)).ok).toBe(true);
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      const body = JSON.parse(init!.body as string);
+      return new Response(JSON.stringify({ answers: Object.fromEntries(Object.keys(body.questions).map(id => [id, { type: 'choice', choice: '4' }])) }));
+    });
+    expect((await mocks.call({ type: 'assess-draft', draft }, x)).ok).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect((await mocks.call({ type: 'assess-draft', draft }, { ...x, url: 'https://x.com/notifications' })).ok).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(mocks.session)).not.toContain('Private draft');
+  });
   it('syncs a post override without broadcasting a settings reset or calling Jev', async () => {
     mocks.tabs.set(1, { id: 1, url: 'https://x.com/home' });
     mocks.tabs.set(2, { id: 2, url: 'https://x.com/search?q=tools' });

@@ -45,6 +45,16 @@ Reposts use the original post's date. Quote posts use their own date and include
 
 ## Data and cost
 
+### Draft scoring
+
+In Settings, enable **Assess my unpublished drafts** separately from feed assessment. With a connected TypeSafe key, a small panel appears below the post, reply, or quote editor. Choose Conversation, Virality, Credibility, or Connection. Each uses editable, unvalidated criteria. Duplicate a profile, add axes, or change weights in **Profiles & scoring axes**.
+
+The panel waits one second after typing stops. All enabled axes are assessed together, one request at a time per tab. Pending edits replace earlier waiting drafts. Results for changed text are ignored. Open the score to see individual 1–5 scores; missing context is excluded from the rounded weighted average. This is a writing-quality assessment, not a validated prediction of views.
+
+Selected profiles are remembered separately for posts, replies, and quotes. Compatible axis results use a session cache. Changing weights does not require new AI judgments. Draft text is not stored by jevx. With draft consent enabled, unpublished text, available parent/quoted text, and your profile go to TypeSafe. Draft scoring is independent of the feed filter switch and skips Notifications and direct-message pages. The draft type can be corrected in the expanded panel when X's markup is ambiguous.
+
+Preview it with `/tests/preview.html?view=draft`. Preview scores are synthetic.
+
 | Data | Storage or destination |
 | --- | --- |
 | Profile, saved searches, filter preference, consent | This browser's local extension storage |

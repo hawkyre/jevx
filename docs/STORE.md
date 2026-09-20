@@ -16,10 +16,13 @@ jevx helps you find conversations worth joining on X. Tell it what interests you
 - Open searches from phrases or hashtags. Reuse existing search tabs.
 - Explore an author's posts or search a related topic from the post menu.
 - Keep your profile, settings, and key in your browser.
+- Optionally score unpublished drafts across editable axes and goals, including conversation, reach, credibility, and connection.
 
 The extension is free and MIT licensed. AI assessment requires your own TypeSafe account and API key. TypeSafe API usage can incur charges. X access requires your own account where X requires sign-in.
 
 Assessment sends your profile, eligible post text, quoted text, and author handles to TypeSafe. This occurs only after you enable assessment and connect a key. jevx has no developer-operated server or analytics.
+
+Draft scoring requires separate consent. It sends unpublished drafts and available parent/quoted text to TypeSafe after a one-second typing pause. Scores measure fit to unvalidated writing criteria, not predicted reach. Profiles, axes, and weights are configurable. The scorer never publishes or rewrites text.
 
 jevx reads only posts that X loads. It does not crawl X, scroll automatically, write replies, or publish posts. Reply detection supports the observed English desktop layout and can miss replies when X omits markers. Images and videos are not assessed. Scores are AI judgments and can be wrong. X layout changes can affect filtering.
 
@@ -59,6 +62,7 @@ The manifest declares website content, authentication information, personally id
 6. Confirm that assessed matches have score buttons and filtered posts have Show controls. Open a score to inspect its breakdown.
 7. Show or hide a post. Other posts must keep their controls. Open a reply composer; filtering waits until it closes.
 8. Pause filtering, then disconnect. Confirm that new API assessments stop. Disconnect deletes the local key.
+9. Reconnect the review key. In Draft scoring, enable the separate draft consent and save. Type in a post/reply/quote composer. After a one-second pause, confirm the score panel updates. Change profiles and expand the axis breakdown. Disable draft consent and confirm no further draft assessments occur. Test without publishing anything.
 
 X and TypeSafe can require accounts. The publisher must provide any review access required by the stores through private reviewer fields. Mock interface previews in the repository do not prove live API behavior.
 
