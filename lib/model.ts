@@ -1,3 +1,5 @@
+import { DEFAULT_CONCURRENCY, parseConcurrency } from './request-pool';
+
 export const DEFAULT_FRESHNESS_MINUTES = 60;
 export const UNVALIDATED_CACHE_TTL_MS = 60 * 60 * 1000;
 export const MODEL = 'jev-1.13.0';
@@ -22,6 +24,7 @@ export interface Settings {
   enabled: boolean;
   consent: boolean;
   ranking: RankingSettings;
+  concurrency: number;
 }
 
 export type Score = 1 | 2 | 3 | 4 | 5;
@@ -43,6 +46,7 @@ export const DEFAULT_SETTINGS: Settings = {
   enabled: true,
   consent: false,
   ranking: DEFAULT_RANKING,
+  concurrency: DEFAULT_CONCURRENCY,
 };
 
 export interface Post {
@@ -133,6 +137,7 @@ export function parseSettings(value: unknown): Settings {
   if (new Set(searches.map(search => search.id)).size !== searches.length) throw new Error('Duplicate search');
   return { profile: profile as unknown as Profile, searches, enabled: settings.enabled, consent: settings.consent,
     ranking: parseRanking(settings.ranking),
+    concurrency: parseConcurrency(settings.concurrency),
   };
 }
 

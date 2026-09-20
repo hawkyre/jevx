@@ -3,6 +3,7 @@ import { assess } from '../lib/jev';
 import { createCredentials } from '../lib/credentials';
 import { createDraftScorer } from '../lib/draft-jev';
 import { isDraftInput, isDraftKind, parseDraftSettings } from '../lib/draft-model';
+import { createRequestPool } from '../lib/request-pool';
 import {
   DEFAULT_SETTINGS, UNVALIDATED_CACHE_TTL_MS, MODEL, POLICY_VERSION, exclusion, isPost,
   isSearchUrl, parseSettings, profileReady, searchUrl,
@@ -14,12 +15,12 @@ interface Override { show: boolean }
 
 export default defineBackground(() => {
   const credentials = createCredentials(browser.storage.session);
-  const draftScorer = createDraftScorer(browser.storage.session);
+  const requests = createRequestPool();
+  const draftScorer = createDraftScorer(browser.storage.session, requests.run);
   let draftRevision = 0;
   let revision = 0;
   let controller = new AbortController();
   let blocked: string | null = null;
-  let queue: Promise<unknown> = Promise.resolve();
   let opening: Promise<unknown> = Promise.resolve();
   let mutations: Promise<unknown> = Promise.resolve();
   const pending = new Map<string, Promise<PostResult>>();
@@ -87,7 +88,8 @@ export default defineBackground(() => {
     if (blocked) return { status: 'visible', reason: blocked };
     const existing = pending.get(cacheKey);
     if (existing) return existing;
-    const job = queue.then(async (): Promise<PostResult> => {
+    requests.setLimit(config.concurrency);
+    const job = requests.run(async (): Promise<PostResult> => {
       if (requestedRevision !== revision) return { status: 'visible', reason: 'Settings changed' };
       const expired = exclusion(post);
       if (expired) return expired;
@@ -112,7 +114,6 @@ export default defineBackground(() => {
       }
     });
     pending.set(cacheKey, job);
-    queue = job.catch(() => undefined);
     void job.finally(() => { if (pending.get(cacheKey) === job) pending.delete(cacheKey); }).catch(() => undefined);
     return job;
   }
@@ -171,6 +172,7 @@ export default defineBackground(() => {
       const key = await credentials.get();
       if (requestedRevision !== draftRevision) throw new Error('Draft settings changed');
       if (!key) throw new Error('Connect TypeSafe in Settings');
+      requests.setLimit(user.concurrency);
       return draftScorer.check(draft, user.profile, selected.axes.filter(a => a.enabled), key);
     }
     if (message.type === 'select-draft-profile' && fromX && isDraftKind(message.kind) && typeof message.profileId === 'string') {
@@ -215,6 +217,7 @@ export default defineBackground(() => {
     if (message.type === 'settings') {
       const config = parseSettings(message.settings);
       invalidate();
+      requests.setLimit(config.concurrency);
       await browser.storage.local.set({ settings: config });
       await broadcast();
       return state();

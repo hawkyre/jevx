@@ -38,7 +38,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   let generation = 0;
   let scheduled = false;
   let disposed = false;
-  let processing = false;
+  let activeChecks = 0;
   let showAll = false;
   let showRanking = false;
   let expiry: ReturnType<typeof setTimeout> | undefined;
@@ -254,36 +254,40 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
     }, Math.min(Math.min(...deadlines) - now, 2 ** 31 - 1));
   }
 
-  async function process() {
-    if (processing || disposed || !state?.settings.enabled || composerOpen() || notificationsOpen()) return;
-    processing = true;
+  async function checkEntry(article: HTMLElement, entry: Entry) {
+    const requestedGeneration = generation;
     try {
-      for (const [article, entry] of entries) {
-        if (disposed || !state.settings.enabled || composerOpen() || notificationsOpen()) break;
-        if (entry.result || entry.checking || !article.isConnected) continue;
-        entry.checking = true;
-        render(article, entry);
-        const requestedGeneration = generation;
-        let result: PostResult;
-        try { result = exclusion(entry.post) ?? await api.check(entry.post); }
-        catch (error) {
-          result = { status: 'visible', reason: error instanceof Error && error.message.includes('Reload this X tab')
-            ? error.message : 'Could not check. Pause, then resume to retry' };
-        }
-        if (disposed) break;
-        if (notificationsOpen()) { schedule(); break; }
-        if (requestedGeneration !== generation || entries.get(article) !== entry) continue;
-        const freshPost = extractPost(article, feedUrl, root.documentElement.lang);
-        if (!freshPost || JSON.stringify(freshPost) !== entry.signature) { schedule(); continue; }
-        entry.checking = false;
-        if (overrides.has(entry.post.id)) continue;
-        entry.result = exclusion(entry.post) ?? result;
-        render(article, entry);
-        renderRanking();
+      let result: PostResult;
+      try { result = exclusion(entry.post) ?? await api.check(entry.post); }
+      catch (error) {
+        result = { status: 'visible', reason: error instanceof Error && error.message.includes('Reload this X tab')
+          ? error.message : 'Could not check. Pause, then resume to retry' };
       }
+      if (disposed) return;
+      if (notificationsOpen()) { schedule(); return; }
+      if (requestedGeneration !== generation || entries.get(article) !== entry) return;
+      const freshPost = extractPost(article, feedUrl, root.documentElement.lang);
+      if (!freshPost || JSON.stringify(freshPost) !== entry.signature) { schedule(); return; }
+      entry.checking = false;
+      if (overrides.has(entry.post.id)) return;
+      entry.result = exclusion(entry.post) ?? result;
+      render(article, entry);
+      renderRanking();
     } finally {
-      processing = false;
-      if (!disposed && state?.settings.enabled && !composerOpen() && !notificationsOpen() && [...entries.values()].some(entry => !entry.result && !entry.checking)) void process();
+      activeChecks--;
+      process();
+    }
+  }
+
+  function process() {
+    if (disposed || !state?.settings.enabled || composerOpen() || notificationsOpen()) return;
+    for (const [article, entry] of entries) {
+      if (activeChecks >= state.settings.concurrency) break;
+      if (entry.result || entry.checking || !article.isConnected) continue;
+      entry.checking = true;
+      activeChecks++;
+      render(article, entry);
+      void checkEntry(article, entry);
     }
   }
 

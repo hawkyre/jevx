@@ -18,6 +18,20 @@ function setup(check = vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'as
 }
 
 describe('feed behavior', () => {
+  it('checks different posts concurrently and applies results in any order', async () => {
+    const complete = new Map<string, (result: PostResult) => void>();
+    const check = vi.fn<FeedApi['check']>().mockImplementation(post => new Promise(resolve => { complete.set(post.id, resolve); }));
+    const { main, state } = setup(check); state.settings.concurrency = 2;
+    const first = article(post({ id: '111' })); const second = article(post({ id: '222' })); const third = article(post({ id: '333' }));
+    main.append(first, second, third);
+    await vi.waitFor(() => expect(check).toHaveBeenCalledTimes(2));
+    complete.get('222')!({ status: 'assessed', assessment: { decision: 'highlight', reason: 'Matches your interests', relevance: 5 } });
+    await vi.waitFor(() => expect(check).toHaveBeenCalledTimes(3));
+    expect(second.dataset.jevxState).toBe('highlight');
+    expect(first.dataset.jevxState).toBeUndefined();
+    for (const id of ['111', '333']) complete.get(id)!({ status: 'assessed', assessment: { decision: 'collapse', reason: 'Outside your interests', relevance: 1 } });
+    await vi.waitFor(() => expect(third.dataset.jevxState).toBe('collapsed'));
+  });
   it('highlights only the outer timestamp and removes the pill at one hour', async () => {
     vi.useFakeTimers();
     const { main } = setup(vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'assessed', assessment: { decision: 'highlight', reason: 'Matches your interests', relevance: 5 } }));

@@ -1,6 +1,7 @@
 import { MODEL, UNVALIDATED_CACHE_TTL_MS, isScore, type Profile, type Score } from './model';
 import { UNVALIDATED_REQUEST_TIMEOUT_MS } from './jev';
 import type { DraftAxis, DraftInput, DraftResult } from './draft-model';
+import { createRequestPool } from './request-pool';
 
 interface SessionStore {
   get(keys: string[] | null): Promise<Record<string, unknown>>;
@@ -45,16 +46,20 @@ async function digest(value: unknown) {
   return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export function createDraftScorer(storage: SessionStore) {
+export function createDraftScorer(storage: SessionStore, run = createRequestPool().run) {
   let controller = new AbortController();
-  let queue: Promise<unknown> = Promise.resolve();
+  const pending = new Map<string, Promise<DraftResult>>();
   return {
-    invalidate() { controller.abort(); controller = new AbortController(); },
-    check(input: DraftInput, profile: Profile, axes: DraftAxis[], key: string): Promise<DraftResult> {
+    invalidate() { controller.abort(); controller = new AbortController(); pending.clear(); },
+    async check(input: DraftInput, profile: Profile, axes: DraftAxis[], key: string): Promise<DraftResult> {
       const signal = controller.signal;
-      const job = queue.then(async () => {
+      const { profileId: _profileId, ...draft } = input;
+      const requestKey = await digest([draft, profile, axes.map(a => [a.id, a.label, a.criterion])]);
+      signal.throwIfAborted();
+      const existing = pending.get(requestKey);
+      if (existing) return existing;
+      const job = run(async () => {
         signal.throwIfAborted();
-        const { profileId: _profileId, ...draft } = input;
         const keys = await Promise.all(axes.map(a => digest([MODEL, DRAFT_POLICY_VERSION, draft, profile, a.label, a.criterion]).then(hash => `draft-cache:${hash}`)));
         const stored = await storage.get(keys);
         const scores: DraftResult['scores'] = {};
@@ -80,7 +85,8 @@ export function createDraftScorer(storage: SessionStore) {
         signal.throwIfAborted();
         return { scores: { ...scores, ...result.scores } };
       });
-      queue = job.catch(() => undefined);
+      pending.set(requestKey, job);
+      void job.finally(() => { if (pending.get(requestKey) === job) pending.delete(requestKey); }).catch(() => undefined);
       return job;
     },
   };

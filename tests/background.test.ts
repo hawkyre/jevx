@@ -47,6 +47,45 @@ beforeEach(() => {
 });
 
 describe('background security and session state', () => {
+  it('does not send queued feed requests after settings change', async () => {
+    mocks.local.settings = { ...readyState().settings, concurrency: 1 };
+    let finish!: (response: Response) => void;
+    vi.mocked(fetch).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const first = mocks.call({ type: 'assess', post: post({ id: '111' }) }, x);
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    const second = mocks.call({ type: 'assess', post: post({ id: '222' }) }, x);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const settings = { ...readyState().settings, concurrency: 1, consent: false };
+    await mocks.call({ type: 'settings', settings }, extension);
+    finish(response());
+    expect((await first).value).toMatchObject({ status: 'visible' });
+    expect((await second).value).toMatchObject({ status: 'visible' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('shares the concurrency limit between feed and draft requests', async () => {
+    mocks.local.settings = { ...readyState().settings, concurrency: 2 };
+    mocks.local.draftSettings = { ...defaultDraftSettings(), consent: true };
+    const finish: (() => void)[] = [];
+    let active = 0; let peak = 0;
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      active++; peak = Math.max(peak, active);
+      const body = JSON.parse(init!.body as string);
+      return new Promise<Response>(resolve => { finish.push(() => {
+        active--;
+        resolve(body.state.draft ? new Response(JSON.stringify({ answers: Object.fromEntries(Object.keys(body.questions).map(id => [id, { type: 'choice', choice: '4' }])) })) : response());
+      }); });
+    });
+    const first = mocks.call({ type: 'assess', post: post({ id: '111' }) }, x);
+    const second = mocks.call({ type: 'assess-draft', draft: { text: 'Draft', kind: 'post', parentText: '', contextMissing: false, hasMedia: false, profileId: 'conversation' } }, x);
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    const third = mocks.call({ type: 'assess', post: post({ id: '333' }) }, x);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(fetch).toHaveBeenCalledTimes(2);
+    finish[0]!(); await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+    finish[1]!(); finish[2]!();
+    expect((await Promise.all([first, second, third])).every(result => result.ok)).toBe(true);
+    expect(peak).toBe(2);
+  });
   it('requires separate draft consent and prevents X from granting it', async () => {
     const draft = { text: 'Private draft', kind: 'post', parentText: '', contextMissing: false, hasMedia: false, profileId: 'conversation' };
     expect((await mocks.call({ type: 'assess-draft', draft }, x)).ok).toBe(false);

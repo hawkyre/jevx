@@ -49,7 +49,7 @@ Reposts use the original post's date. Quote posts use their own date and include
 
 In Settings, enable **Assess my unpublished drafts** separately from feed assessment. With a connected TypeSafe key, a small panel appears below the post, reply, or quote editor. Choose Conversation, Virality, Credibility, or Connection. Each uses editable, unvalidated criteria. Duplicate a profile, add axes, or change weights in **Profiles & scoring axes**.
 
-The panel waits one second after typing stops. All enabled axes are assessed together, one request at a time per tab. Pending edits replace earlier waiting drafts. Results for changed text are ignored. Open the score to see individual 1–5 scores; missing context is excluded from the rounded weighted average. This is a writing-quality assessment, not a validated prediction of views.
+The panel waits one second after typing stops. All enabled axes are assessed together, one request at a time per composer. Independent composers can run in parallel. Pending edits replace earlier waiting drafts. Results for changed text are ignored. Open the score to see individual 1–5 scores; missing context is excluded from the rounded weighted average. This is a writing-quality assessment, not a validated prediction of views.
 
 Selected profiles are remembered separately for posts, replies, and quotes. Compatible axis results use a session cache. Changing weights does not require new AI judgments. Draft text is not stored by jevx. With draft consent enabled, unpublished text, available parent/quoted text, and your profile go to TypeSafe. Draft scoring is independent of the feed filter switch and skips Notifications and direct-message pages. The draft type can be corrected in the expanded panel when X's markup is ambiguous.
 
@@ -67,6 +67,8 @@ Preview it with `/tests/preview.html?view=draft`. Preview scores are synthetic.
 The extension has no subscription, server, analytics, or X API dependency. TypeSafe charges for API use. Check [current pricing](https://docs.typesafe.ai/models). Your key never enters X's page scripts. Post text is not persisted by jevx.
 
 Assessments are shared across tabs. The cache includes the post content, profile, model, and criteria version. Profile edits invalidate previous matches. Weight changes recalculate scores from cached relevance without another Jev request. A service failure stops further requests until you pause and resume or update settings. Request failures remain visible. Posts marked **More context needed** collapse and can be revealed with **Show**.
+
+**Concurrent Jev requests** in Settings defaults to 20. One shared pool bounds feed and draft requests across all tabs. Each feed request includes visibility, reason, and relevance; each draft request includes all missing enabled axes. Different posts use separate concurrent calls, following TypeSafe's [re-ranking pattern](https://docs.typesafe.ai/cookbooks/rerank_typesafe). Questions within each call run in parallel, as described in its [multiple-question guide](https://docs.typesafe.ai/patterns/fan-out). Identical pending assessments share a result. This limit is a product setting, not a claim about your TypeSafe account's rate limit.
 
 ## Development
 

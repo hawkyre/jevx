@@ -55,7 +55,7 @@ footer { border-top: 1px solid var(--line); margin-top: calc(var(--space) * 6); 
 .profile-form { display: grid; gap: calc(var(--space) * 6); }
 .profile-form > label { display: flex; flex-wrap: wrap; gap: calc(var(--space) * 2); font-size: 12px; font-weight: 500; }
 .profile-form > label > .muted { margin-left: auto; }
-textarea, .key-row input { width: 100%; padding: calc(var(--space) * 3); border: 1px solid var(--line); background: var(--field); }
+textarea, .key-row input, .profile-form > label > input[type="number"] { width: 100%; padding: calc(var(--space) * 3); border: 1px solid var(--line); background: var(--field); }
 textarea { resize: vertical; font-weight: 400; min-height: 64px; }
 ::placeholder { color: var(--muted); opacity: 1; }
 .profile-form .consent { flex-wrap: nowrap; align-items: flex-start; gap: calc(var(--space) * 3); font-weight: 400; }

@@ -1,4 +1,5 @@
 import { parseRanking, profileReady, type PublicState, type Settings } from './model';
+import { parseConcurrency } from './request-pool';
 
 export interface UiApi {
   state(): Promise<PublicState>;
@@ -125,6 +126,7 @@ export async function mountOptions(root: HTMLElement, api: UiApi) {
         <label>Freshness window (minutes)<input name="freshnessMinutes" type="number" min="1" step="1" required></label></div>
         <p class="hint">Recency falls from 5 to 1 across this window. Older posts keep a recency score of 1.</p>
       </fieldset>
+      <label>Concurrent Jev requests<input name="concurrency" type="number" min="1" step="1" required><small class="hint">Shared across feed and draft scoring in all tabs. Default: 20.</small></label>
       <label class="consent"><input type="checkbox" name="consent"><span>Use Jev to assess posts.<small>Send your profile, post text, quoted text, and author handles to TypeSafe for ranking. Requests use your saved API key. TypeSafe usage can incur charges.</small></span></label>
       <a class="text-link" href="privacy.html" target="_blank" rel="noreferrer">Privacy and data use ↗</a>
       <button type="submit" class="primary">Save profile</button>
@@ -141,6 +143,7 @@ export async function mountOptions(root: HTMLElement, api: UiApi) {
     required<HTMLTextAreaElement>(form, `[name="${name}"]`).value = current.settings.profile[name];
   }
   required<HTMLInputElement>(form, '[name="consent"]').checked = current.settings.consent;
+  required<HTMLInputElement>(form, '[name="concurrency"]').value = String(current.settings.concurrency);
   for (const name of ['relevanceWeight', 'recencyWeight', 'freshnessMinutes'] as const) {
     required<HTMLInputElement>(form, `[name="${name}"]`).value = String(current.settings.ranking[name]);
   }
@@ -162,7 +165,9 @@ export async function mountOptions(root: HTMLElement, api: UiApi) {
       }
       const ranking = parseRanking(Object.fromEntries(['relevanceWeight', 'recencyWeight', 'freshnessMinutes'].map(name =>
         [name, required<HTMLInputElement>(form, `[name="${name}"]`).valueAsNumber])));
-      current = await api.save({ ...latest.settings, profile, ranking, consent: required<HTMLInputElement>(form, '[name="consent"]').checked });
+      current = await api.save({ ...latest.settings, profile, ranking,
+        concurrency: parseConcurrency(required<HTMLInputElement>(form, '[name="concurrency"]').valueAsNumber),
+        consent: required<HTMLInputElement>(form, '[name="consent"]').checked });
       report(root, 'Profile saved. Open the extension to choose your searches.');
     } catch (error) { failure(root, error); }
     finally { submit.disabled = false; }

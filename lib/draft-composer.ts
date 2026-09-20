@@ -46,6 +46,7 @@ interface Composer {
   status: HTMLElement; score: HTMLElement; cue: HTMLElement; rows: HTMLElement; details: HTMLDetailsElement;
   signature: string; result?: DraftResult; input?: DraftInput; due: number; composing: boolean; manualKind?: DraftKind;
   events: AbortController;
+  busy: boolean;
 }
 
 export function startDraftScoring(api: DraftApi, root: Document = document, locationUrl = () => location.href) {
@@ -54,7 +55,6 @@ export function startDraftScoring(api: DraftApi, root: Document = document, loca
   let disposed = false;
   let refreshId = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let busy = false;
   let scheduled = false;
   let stateSignature = '';
   let rememberedReply = '';
@@ -120,7 +120,7 @@ export function startDraftScoring(api: DraftApi, root: Document = document, loca
     const foot = el('div', 'jevx-draft-foot'); foot.append(kind, el('span', '', '1–5 · Editable criteria, unvalidated defaults'));
     details.append(summary, rows, foot); panel.append(top, details);
     const events = new AbortController();
-    const c: Composer = { editor, host, panel, profile, kind, status, score, cue, rows, details, signature: '', due: 0, composing: false, events };
+    const c: Composer = { editor, host, panel, profile, kind, status, score, cue, rows, details, signature: '', due: 0, composing: false, events, busy: false };
     profile.addEventListener('change', () => {
       c.signature = '';
       void api.select(c.input?.kind ?? 'post', profile.value).catch(error => { status.textContent = String(error); });
@@ -159,17 +159,18 @@ export function startDraftScoring(api: DraftApi, root: Document = document, loca
 
   function arm() {
     clearTimeout(timer);
-    if (busy || disposed || excluded() || !state?.settings.consent || !state.connected) return;
-    const waiting = [...composers.values()].filter(c => !c.result && !c.composing && c.input?.text && c.due !== Infinity);
+    if (disposed || excluded() || !state?.settings.consent || !state.connected) return;
+    const waiting = [...composers.values()].filter(c => !c.busy && !c.result && !c.composing && c.input?.text && c.due !== Infinity);
     if (waiting.length) timer = setTimeout(() => { void process(); }, Math.max(0, Math.min(...waiting.map(c => c.due)) - Date.now()));
   }
 
   async function process() {
-    if (busy || disposed || excluded() || !state?.settings.consent || !state.connected) return;
-    const c = [...composers.values()].find(c => !c.result && !c.composing && c.input?.text && c.due <= Date.now());
+    if (disposed || excluded() || !state?.settings.consent || !state.connected) return;
+    const c = [...composers.values()].find(c => !c.busy && !c.result && !c.composing && c.input?.text && c.due <= Date.now());
     if (!c?.input) { arm(); return; }
-    busy = true; const signature = c.signature; const input = c.input;
+    c.busy = true; const signature = c.signature; const input = c.input;
     c.status.textContent = 'Checking your draft…'; c.panel.setAttribute('aria-busy', 'true'); c.due = Infinity;
+    arm();
     try {
       const result = await api.check(input);
       if (!disposed && !excluded() && c.editor.isConnected && composers.get(c.editor) === c && c.signature === signature && !c.composing) {
@@ -181,7 +182,7 @@ export function startDraftScoring(api: DraftApi, root: Document = document, loca
         c.cue.textContent = 'Could not score this draft';
         c.status.textContent = error instanceof Error ? error.message : 'Edit the draft to try again';
       }
-    } finally { busy = false; c.panel.removeAttribute('aria-busy'); arm(); }
+    } finally { c.busy = false; c.panel.removeAttribute('aria-busy'); arm(); }
   }
 
   function scan() {

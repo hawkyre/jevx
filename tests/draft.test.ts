@@ -61,7 +61,11 @@ describe('draft scores', () => {
     vi.stubGlobal('fetch', fetchMock);
     const scorer = createDraftScorer(storage);
     const axes = defaultDraftSettings().profiles[0]!.axes;
-    await scorer.check(draft(), readyState().settings.profile, axes, 'test-key');
+    await Promise.all([
+      scorer.check(draft(), readyState().settings.profile, axes, 'test-key'),
+      scorer.check(draft(), readyState().settings.profile, axes, 'test-key'),
+    ]);
+    expect(Object.keys(JSON.parse(fetchMock.mock.calls[0]![1].body as string).questions)).toHaveLength(axes.length);
     axes[0]!.weight = 5;
     await scorer.check({ ...draft(), profileId: 'custom' }, readyState().settings.profile, axes, 'test-key');
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -92,6 +96,23 @@ async function setup(check: DraftApi['check'] = vi.fn().mockResolvedValue({ scor
 }
 
 describe('draft composer', () => {
+  it('assesses independent composers concurrently while preserving each draft queue', async () => {
+    const complete: ((result: DraftResult) => void)[] = [];
+    const check = vi.fn<DraftApi['check']>().mockImplementation(() => new Promise(resolve => { complete.push(resolve); }));
+    const first = await setup(check);
+    const second = composer(); second.editor.textContent = 'Second composer';
+    first.type('First composer');
+    await vi.advanceTimersByTimeAsync(1001);
+    expect(check).toHaveBeenCalledTimes(2);
+    first.type('First composer updated'); await vi.advanceTimersByTimeAsync(1000);
+    expect(check).toHaveBeenCalledTimes(2);
+    complete[0]!({ scores: { clarity: 4 } }); await vi.advanceTimersByTimeAsync(0);
+    expect(check).toHaveBeenCalledTimes(3);
+    complete[1]!({ scores: { clarity: 3 } }); complete[2]!({ scores: { clarity: 5 } });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(first.host.querySelector('.jevx-draft-number strong')?.textContent).toBe('5');
+    expect(second.host.querySelector('.jevx-draft-number strong')?.textContent).toBe('3');
+  });
   it('places the panel below a horizontal reply row and follows layout changes', async () => {
     const { editor, host, feed } = await setup();
     const shell = document.createElement('div'); shell.style.cssText = 'display:flex;flex-direction:column';
