@@ -8,6 +8,7 @@ function ownElements(article: HTMLElement, selector: string): HTMLElement[] {
 }
 
 export function extractPost(article: HTMLElement, pageUrl: string, language: string): Post | null {
+  if (article.closest('[role="dialog"]')) return null;
   const page = new URL(pageUrl);
   const headers = ownElements(article, '[data-testid="User-Name"]');
   const time = headers[0]?.querySelector<HTMLElement>('time[datetime]') ??

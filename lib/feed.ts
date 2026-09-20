@@ -15,7 +15,7 @@ export interface FeedApi {
 interface Entry {
   post: Post;
   signature: string;
-  generation: number;
+  needsRender: boolean;
   result?: PostResult;
   shown: boolean;
   checking: boolean;
@@ -41,7 +41,15 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   let expiry: ReturnType<typeof setTimeout> | undefined;
   let toolbar: HTMLElement | undefined;
   let rankingPanel: HTMLElement | undefined;
-  let previousUrl = '';
+  let feedUrl = locationUrl();
+  let resetPending = false;
+  let refreshRequest = 0;
+  let rankingSignature = '';
+
+  function composerOpen() {
+    return new URL(locationUrl()).pathname.startsWith('/compose/') ||
+      Boolean(root.querySelector('[role="dialog"] [data-testid^="tweetTextarea_"]'));
+  }
 
   function cleanup(article: HTMLElement) {
     delete article.dataset.jevxState;
@@ -56,6 +64,8 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   }
 
   function render(article: HTMLElement, entry: Entry) {
+    if (composerOpen()) { entry.needsRender = true; return; }
+    entry.needsRender = false;
     cleanup(article);
     if (!state?.settings.enabled || showAll) return;
     const result = entry.result;
@@ -119,8 +129,18 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   }
 
   function renderRanking() {
+    if (composerOpen()) return;
+    if (!showRanking || !toolbar?.isConnected) { rankingPanel?.remove(); rankingSignature = ''; return; }
+    const matches = new Map<string, { post: Post; score: PostScore; createdAt: number }>();
+    if (state?.settings.enabled) for (const [article, entry] of entries) {
+      const score = entryScore(entry);
+      if (article.isConnected && score) matches.set(entry.post.id, { post: entry.post, createdAt: entry.post.createdAt, score });
+    }
+    const sorted = [...matches.values()].sort((a, b) => compareScores(a, b, state!.settings.ranking));
+    const signature = JSON.stringify(sorted.map(match => [match.post.id, match.post.author, match.post.text, match.post.quotedText, match.score.total]));
+    if (signature === rankingSignature && rankingPanel?.isConnected && toolbar.nextElementSibling === rankingPanel) return;
+    rankingSignature = signature;
     rankingPanel?.remove();
-    if (!showRanking || !toolbar?.isConnected) return;
     rankingPanel = document.createElement('section');
     rankingPanel.dataset.jevxUi = 'ranking';
     rankingPanel.className = 'jevx-ranking';
@@ -128,12 +148,6 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
     const heading = document.createElement('p');
     heading.textContent = 'Top matches · Loaded posts in this tab';
     rankingPanel.append(heading);
-    const matches = new Map<string, { post: Post; score: PostScore; createdAt: number }>();
-    if (state?.settings.enabled) for (const [article, entry] of entries) {
-      const score = entryScore(entry);
-      if (article.isConnected && score) matches.set(entry.post.id, { post: entry.post, createdAt: entry.post.createdAt, score });
-    }
-    const sorted = [...matches.values()].sort((a, b) => compareScores(a, b, state!.settings.ranking));
     if (!sorted.length) {
       const empty = document.createElement('p');
       empty.textContent = 'Matches appear here as posts are checked.';
@@ -157,7 +171,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   }
 
   function renderToolbar() {
-    if (!state) return;
+    if (!state || composerOpen()) return;
     if (!root.querySelector(POST_SELECTOR)) { toolbar?.remove(); rankingPanel?.remove(); return; }
     const column = root.querySelector('[data-testid="primaryColumn"]') ?? root.querySelector('main');
     if (!column) return;
@@ -196,18 +210,20 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
     const deadlines = [...entries.values()].map(entry => nextScoreChange(entry.post.createdAt, state!.settings.ranking, now))
       .filter((time): time is number => time !== null && time > now);
     if (deadlines.length) expiry = setTimeout(() => {
-      for (const [article, entry] of entries) updateScore(article, entry);
-      renderRanking();
+      if (!composerOpen()) {
+        for (const [article, entry] of entries) updateScore(article, entry);
+        renderRanking();
+      }
       scheduleScoreUpdate();
     }, Math.min(Math.min(...deadlines) - now, 2 ** 31 - 1));
   }
 
   async function process() {
-    if (processing || disposed || !state?.settings.enabled) return;
+    if (processing || disposed || !state?.settings.enabled || composerOpen()) return;
     processing = true;
     try {
       for (const [article, entry] of entries) {
-        if (disposed || !state.settings.enabled) break;
+        if (disposed || !state.settings.enabled || composerOpen()) break;
         if (entry.result || entry.checking || !article.isConnected) continue;
         entry.checking = true;
         render(article, entry);
@@ -220,7 +236,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
         }
         if (disposed) break;
         if (requestedGeneration !== generation || entries.get(article) !== entry) continue;
-        const freshPost = extractPost(article, locationUrl(), root.documentElement.lang);
+        const freshPost = extractPost(article, feedUrl, root.documentElement.lang);
         if (!freshPost || JSON.stringify(freshPost) !== entry.signature) { schedule(); continue; }
         entry.checking = false;
         entry.result = exclusion(entry.post) ?? result;
@@ -229,17 +245,16 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
       }
     } finally {
       processing = false;
-      if (!disposed && state?.settings.enabled && [...entries.values()].some(entry => !entry.result && !entry.checking)) void process();
+      if (!disposed && state?.settings.enabled && !composerOpen() && [...entries.values()].some(entry => !entry.result && !entry.checking)) void process();
     }
   }
 
   function scan() {
     scheduled = false;
-    if (disposed || !state) return;
-    const url = locationUrl();
-    if (url !== previousUrl) {
-      previousUrl = url;
-      generation++;
+    if (disposed || !state || composerOpen()) return;
+    feedUrl = locationUrl();
+    if (resetPending) {
+      resetPending = false;
       for (const article of entries.keys()) cleanup(article);
       entries.clear();
       renderToolbar();
@@ -247,12 +262,17 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
     if (!toolbar?.isConnected) renderToolbar();
     for (const [article] of entries) if (!article.isConnected) { cleanup(article); entries.delete(article); }
     for (const article of root.querySelectorAll<HTMLElement>(POST_SELECTOR)) {
-      const post = extractPost(article, url, root.documentElement.lang);
+      const post = extractPost(article, feedUrl, root.documentElement.lang);
       if (!post) { cleanup(article); entries.delete(article); continue; }
       const signature = JSON.stringify(post);
-      if (entries.get(article)?.signature === signature) continue;
+      const existing = entries.get(article);
+      if (existing?.signature === signature) {
+        if (existing.needsRender) render(article, existing);
+        else updateScore(article, existing);
+        continue;
+      }
       cleanup(article);
-      const entry: Entry = { post, signature, generation, shown: false, checking: false };
+      const entry: Entry = { post, signature, needsRender: false, shown: false, checking: false };
       entries.set(article, entry);
       if (!state.settings.enabled) continue;
       entry.result = exclusion(post) ?? undefined;
@@ -272,7 +292,7 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   const observer = new MutationObserver(records => {
     const changed = records.some(record => {
       const target = record.target instanceof Element ? record.target : record.target.parentElement;
-      if (target?.closest('[data-jevx-ui]')) return false;
+      if (target?.closest('[data-jevx-ui], [role="dialog"]')) return false;
       return record.type !== 'childList' || [...record.addedNodes, ...record.removedNodes].some(node =>
         !(node instanceof Element && node.matches('[data-jevx-ui]')));
     });
@@ -281,18 +301,18 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
   observer.observe(root.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['href', 'datetime'] });
 
   async function refresh() {
+    const request = ++refreshRequest;
     const next = await api.state();
-    if (disposed) return;
+    if (disposed || request !== refreshRequest) return;
     state = next;
     generation++;
-    for (const article of entries.keys()) cleanup(article);
-    entries.clear();
-    renderToolbar();
+    resetPending = true;
     schedule();
   }
   void refresh().catch(showError);
   return {
     refresh,
+    navigate: schedule,
     dispose() {
       disposed = true; observer.disconnect(); clearTimeout(expiry); toolbar?.remove(); rankingPanel?.remove();
       for (const article of entries.keys()) cleanup(article);

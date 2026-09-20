@@ -17,7 +17,7 @@ export default defineContentScript({
       if ((message as { type?: string } | null)?.type === 'changed') void feed.refresh().catch(() => undefined);
     };
     browser.runtime.onMessage.addListener(changed);
-    ctx.addEventListener(window, 'wxt:locationchange', () => { void feed.refresh().catch(() => undefined); });
+    ctx.addEventListener(window, 'wxt:locationchange', () => feed.navigate());
     ctx.onInvalidated(() => { browser.runtime.onMessage.removeListener(changed); feed.dispose(); });
   },
 });

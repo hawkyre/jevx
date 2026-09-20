@@ -11,12 +11,80 @@ function setup(check = vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'as
   document.body.innerHTML = '<main data-testid="primaryColumn"></main>';
   const state = readyState();
   const api: FeedApi = { state: vi.fn().mockImplementation(async () => state), check, toggle: vi.fn(), override: vi.fn().mockResolvedValue(null), explore: vi.fn(), options: vi.fn().mockResolvedValue(null) };
-  const feed = startFeed(api, document, () => 'https://x.com/home');
+  let currentUrl = 'https://x.com/home';
+  const feed = startFeed(api, document, () => currentUrl);
   stop = feed.dispose;
-  return { feed, api, state, main: document.querySelector('main')! };
+  return { feed, api, state, main: document.querySelector('main')!, navigate: (url: string) => { currentUrl = url; feed.navigate(); } };
 }
 
 describe('feed behavior', () => {
+  it('preserves feed controls, ranking, and assessments across composer navigation', async () => {
+    const { main, api, navigate } = setup(vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'assessed', assessment: {
+      decision: 'highlight', reason: 'Matches your interests', relevance: 5,
+    } }));
+    const element = article(post()); main.append(element);
+    await vi.waitFor(() => expect(element.dataset.jevxState).toBe('highlight'));
+    [...main.querySelectorAll<HTMLButtonElement>('[data-jevx-ui="toolbar"] button')].find(button => button.textContent === 'Top matches')!.click();
+    const controls = element.querySelector('[data-jevx-ui="post"]');
+    const toolbar = main.querySelector('[data-jevx-ui="toolbar"]');
+    const ranking = main.querySelector('[data-jevx-ui="ranking"]');
+    const dialog = document.createElement('div'); dialog.setAttribute('role', 'dialog');
+    dialog.innerHTML = '<div data-testid="tweetTextarea_0" contenteditable="true"></div>';
+    dialog.append(article(post({ id: '222' })));
+    navigate('https://x.com/compose/post'); document.body.append(dialog);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(dialog.querySelector('[data-jevx-ui]')).toBeNull();
+    expect(element.querySelector('[data-jevx-ui="post"]')).toBe(controls);
+    dialog.remove(); navigate('https://x.com/home');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(element.querySelector('[data-jevx-ui="post"]')).toBe(controls);
+    expect(main.querySelector('[data-jevx-ui="toolbar"]')).toBe(toolbar);
+    expect(main.querySelector('[data-jevx-ui="ranking"]')).toBe(ranking);
+    expect(api.state).toHaveBeenCalledTimes(1);
+    expect(api.check).toHaveBeenCalledTimes(1);
+  });
+  it('defers an in-flight assessment while a composer dialog is open', async () => {
+    let resolve!: (value: PostResult) => void;
+    const check = vi.fn<FeedApi['check']>().mockImplementation(() => new Promise(done => { resolve = done; }));
+    const { main, navigate } = setup(check);
+    const element = article(post()); main.append(element);
+    await vi.waitFor(() => expect(check).toHaveBeenCalledTimes(1));
+    const controls = element.querySelector('[data-jevx-ui="post"]');
+    const dialog = document.createElement('div'); dialog.setAttribute('role', 'dialog');
+    dialog.innerHTML = '<div data-testid="tweetTextarea_0" contenteditable="true"></div>';
+    document.body.append(dialog);
+    resolve({ status: 'assessed', assessment: { decision: 'collapse', reason: 'Outside your interests', relevance: 1 } });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(element.dataset.jevxState).toBeUndefined();
+    expect(element.querySelector('[data-jevx-ui="post"]')).toBe(controls);
+    dialog.remove(); navigate('https://x.com/home');
+    await vi.waitFor(() => expect(element.dataset.jevxState).toBe('collapsed'));
+    expect(check).toHaveBeenCalledTimes(1);
+  });
+  it('applies changed settings after closing the composer', async () => {
+    const { main, feed, state, navigate } = setup();
+    const element = article(post()); main.append(element);
+    await vi.waitFor(() => expect(element.dataset.jevxState).toBe('collapsed'));
+    const controls = element.querySelector('[data-jevx-ui="post"]');
+    navigate('https://x.com/compose/post');
+    state.settings.enabled = false;
+    await feed.refresh();
+    expect(element.querySelector('[data-jevx-ui="post"]')).toBe(controls);
+    navigate('https://x.com/home');
+    await vi.waitFor(() => expect(element.querySelector('[data-jevx-ui="post"]')).toBeNull());
+    expect(element.dataset.jevxState).toBeUndefined();
+  });
+  it('reconciles post type on real navigation without reloading settings', async () => {
+    const { main, navigate, api } = setup(vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'assessed', assessment: {
+      decision: 'highlight', reason: 'Matches your interests', relevance: 5,
+    } }));
+    const element = article(post()); main.append(element);
+    await vi.waitFor(() => expect(element.dataset.jevxState).toBe('highlight'));
+    navigate('https://x.com/builder/status/123456789');
+    await vi.waitFor(() => expect(element.textContent).toContain('Could not check the post type'));
+    expect(element.dataset.jevxState).toBeUndefined();
+    expect(api.state).toHaveBeenCalledTimes(1);
+  });
   it('filters newly loaded Home posts without opening searches', async () => {
     const { main, api } = setup();
     const first = article(post()); main.append(first);

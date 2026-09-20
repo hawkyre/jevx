@@ -3,6 +3,11 @@ import { extractPost } from '../lib/extract';
 import { article, post } from './fixtures';
 
 describe('X post extraction', () => {
+  it('does not extract posts displayed inside a dialog', () => {
+    const dialog = document.createElement('div'); dialog.setAttribute('role', 'dialog');
+    const element = article(post()); dialog.append(element);
+    expect(extractPost(element, 'https://x.com/compose/post', 'en')).toBeNull();
+  });
   it('reads the outer post date and preserves quoted text', () => {
     const value = post();
     const element = article(value);
