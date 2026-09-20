@@ -143,7 +143,7 @@ export async function mountOptions(root: HTMLElement, api: UiApi) {
     required<HTMLTextAreaElement>(form, `[name="${name}"]`).value = current.settings.profile[name];
   }
   required<HTMLInputElement>(form, '[name="consent"]').checked = current.settings.consent;
-  required<HTMLInputElement>(form, '[name="concurrency"]').value = String(current.settings.concurrency);
+  required<HTMLInputElement>(form, '[name="concurrency"]').value = String(parseConcurrency(current.settings.concurrency));
   for (const name of ['relevanceWeight', 'recencyWeight', 'freshnessMinutes'] as const) {
     required<HTMLInputElement>(form, `[name="${name}"]`).value = String(current.settings.ranking[name]);
   }

@@ -1,5 +1,5 @@
 import { browser } from 'wxt/browser';
-import type { Post, PostResult, PublicState, Settings } from './model';
+import { parseSettings, type Post, type PostResult, type PublicState, type Settings } from './model';
 
 export async function send<T>(message: Record<string, unknown>): Promise<T> {
   let response: { ok: boolean; value?: T; error?: string };
@@ -15,6 +15,9 @@ export async function send<T>(message: Record<string, unknown>): Promise<T> {
   return response.value as T;
 }
 
-export const getState = () => send<PublicState>({ type: 'state' });
+export async function getState(): Promise<PublicState> {
+  const state = await send<PublicState>({ type: 'state' });
+  return { ...state, settings: parseSettings(state.settings) };
+}
 export const saveSettings = (settings: Settings) => send<PublicState>({ type: 'settings', settings });
 export const checkPost = (post: Post) => send<PostResult>({ type: 'assess', post });
