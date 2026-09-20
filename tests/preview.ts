@@ -26,13 +26,21 @@ const api: UiApi = {
 };
 const root = document.querySelector<HTMLElement>('#app')!;
 const draftState = { settings: defaultDraftSettings(), connected: true };
-if (view === 'draft') {
+if (view === 'draft' || view === 'reply') {
   root.style.cssText = 'max-width:600px;margin:64px auto;padding:32px;border:1px solid var(--line);border-radius:20px';
   root.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px"><h1>jevx<span class="brand-dot">.</span></h1><span class="muted">Composer preview · Sample scores</span></div>
     <div data-testid="quoteTweet" role="link" style="border-left:2px solid var(--line);padding:0 0 0 16px;margin-bottom:24px"><span class="muted">@builder</span><p data-testid="tweetText">We shipped a new vocabulary app. How do you know whether practice transfers to real conversations?</p></div>
     <div contenteditable="true" role="textbox" aria-label="Draft text" data-testid="tweetTextarea_0" style="min-height:140px;outline:none;font-size:19px;line-height:1.6">We tested recall a week after practice, using words in new sentences. Session streaks looked great; transfer was the real test. What are you measuring today?</div>
     <div style="display:flex;justify-content:flex-end;margin-top:24px"><button data-testid="tweetButton" disabled class="primary" style="width:auto;border-radius:24px;padding:8px 24px">Post</button></div>`;
   draftState.settings.consent = true;
+  if (view === 'reply') {
+    const row = document.createElement('div'); row.style.cssText = 'display:flex;flex-direction:row;align-items:center;gap:16px';
+    const editor = root.querySelector<HTMLElement>('[contenteditable]')!;
+    const submit = root.querySelector<HTMLElement>('[data-testid="tweetButton"]')!.parentElement!;
+    editor.textContent = 'Post your reply'; editor.style.cssText = 'flex:1;min-width:0;font-size:20px;line-height:1.5;color:var(--muted);outline:none';
+    submit.style.marginTop = '0'; submit.querySelector('button')!.textContent = 'Reply';
+    row.append(editor, submit); root.append(row);
+  }
   const drafts = startDraftScoring({
     state: async () => structuredClone(draftState),
     check: async draft => ({ scores: Object.fromEntries(draftState.settings.profiles.find(p => p.id === draft.profileId)!.axes.filter(a => a.enabled).map(a => [a.id, a.id === 'specificity' ? 3 : 4])) }),

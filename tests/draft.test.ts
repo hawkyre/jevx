@@ -92,6 +92,23 @@ async function setup(check: DraftApi['check'] = vi.fn().mockResolvedValue({ scor
 }
 
 describe('draft composer', () => {
+  it('places the panel below a horizontal reply row and follows layout changes', async () => {
+    const { editor, host, feed } = await setup();
+    const shell = document.createElement('div'); shell.style.cssText = 'display:flex;flex-direction:column';
+    host.before(shell); shell.append(host);
+    host.style.cssText = 'display:flex;flex-direction:row';
+    feed.navigate(); await vi.advanceTimersByTimeAsync(0);
+    const panel = shell.querySelector<HTMLElement>('[data-jevx-ui="draft"]')!;
+    expect(panel.parentElement).toBe(shell);
+    expect(host.nextElementSibling).toBe(panel);
+    expect(host.querySelector('[data-jevx-ui]')).toBeNull();
+    expect(host.querySelector('[contenteditable]')).toBe(editor);
+    expect(host.querySelector('[data-testid="tweetButton"]')).not.toBeNull();
+    host.style.flexDirection = 'column';
+    window.dispatchEvent(new Event('resize')); await vi.advanceTimersByTimeAsync(0);
+    expect(panel.parentElement).toBe(host);
+    expect(editor.nextElementSibling).toBe(panel);
+  });
   it('debounces edits and preserves the editor and panel', async () => {
     const { type, api, editor, host } = await setup();
     const panel = host.querySelector('[data-jevx-ui="draft"]');

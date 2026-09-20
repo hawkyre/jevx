@@ -1,5 +1,5 @@
 /* Unvalidated visual tokens; verify in the rendered composer. */
-.jevx-draft { width: 100%; box-sizing: border-box; margin: 14px 0 8px; padding: 14px 16px; border: 1px solid var(--jevx-border); border-radius: 16px; background: var(--jevx-surface); color: var(--jevx-ink); font-size: 12px; line-height: 1.5; }
+.jevx-draft { width: 100%; min-width: 0; flex-shrink: 0; box-sizing: border-box; margin: 14px 0 8px; padding: 14px 16px; border: 1px solid var(--jevx-border); border-radius: 16px; background: var(--jevx-surface); color: var(--jevx-ink); font-size: 12px; line-height: 1.5; }
 .jevx-draft-top { display: flex; align-items: center; gap: 10px; }
 .jevx-draft-identity { display: flex; align-items: center; gap: 8px; color: var(--jevx-muted); font-size: 11px; white-space: nowrap; }
 .jevx-draft-mark { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: color-mix(in srgb, var(--jevx-accent) 12%, transparent); color: var(--jevx-accent); font-size: 15px; font-weight: 650; }

@@ -64,7 +64,15 @@ export function startDraftScoring(api: DraftApi, root: Document = document, loca
   function attach(c: Composer) {
     let anchor = c.editor;
     while (anchor.parentElement && anchor.parentElement !== c.host) anchor = anchor.parentElement;
-    anchor.after(c.panel);
+    let container: HTMLElement | null = c.host;
+    while (container && container !== root.body) {
+      const style = getComputedStyle(container);
+      if (!((style.display === 'flex' || style.display === 'inline-flex') && style.flexDirection.startsWith('row')) &&
+        style.display !== 'grid' && style.display !== 'inline-grid') break;
+      anchor = container;
+      container = container.parentElement;
+    }
+    if (anchor.nextElementSibling !== c.panel) anchor.after(c.panel);
   }
   function updateResult(c: Composer) {
     const profile = profileFor(c);
@@ -193,7 +201,7 @@ export function startDraftScoring(api: DraftApi, root: Document = document, loca
       const host = composerHost(editor); if (!host) continue;
       let c = composers.get(editor);
       if (!c) { c = mount(editor, host); composers.set(editor, c); }
-      if (!c.panel.isConnected) attach(c);
+      attach(c);
       refreshInput(c);
     }
     arm();
@@ -213,6 +221,7 @@ export function startDraftScoring(api: DraftApi, root: Document = document, loca
     if (reply) rememberedReply = [...(reply.closest('article')?.querySelectorAll('[data-testid="tweetText"]') ?? [])].map(n => n.textContent ?? '').join('\n');
   };
   root.addEventListener('click', remember, true);
+  root.defaultView?.addEventListener('resize', schedule);
   async function refresh(force = false) {
     const id = ++refreshId; const next = await api.state();
     if (disposed || id !== refreshId) return;
@@ -226,6 +235,7 @@ export function startDraftScoring(api: DraftApi, root: Document = document, loca
   void refresh().catch(() => undefined);
   return { refresh, navigate: schedule, dispose() {
     disposed = true; observer.disconnect(); clearTimeout(timer); root.removeEventListener('click', remember, true);
+    root.defaultView?.removeEventListener('resize', schedule);
     for (const c of composers.values()) { c.events.abort(); c.panel.remove(); } composers.clear();
   } };
 }
