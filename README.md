@@ -33,9 +33,9 @@ Searches open in X's Latest view with replies excluded. The extension reuses its
 
 The filter runs automatically on X Home, including **For you** and **Following**, and on loaded posts across X tabs. Saved searches are optional. Use **Settings** in the feed toolbar to set up your profile and key without opening the extension popup.
 
-**Show** reveals a collapsed post. **Show all** reveals the current tab. **Filter off** pauses filtering across tabs. **Explore** opens an author search or a related search you enter. Add that search in the popup if you want to save it.
+**Show** reveals a collapsed post. **Show all** reveals the current tab. **Filter off** pauses filtering across tabs. The **⋯** button opens post actions: find more from the author, search a related topic, or hide the post. Add a search in the popup if you want to save it.
 
-Relevant posts show a score from 1 to 5. **Top matches** ranks the loaded matches in the current tab without moving X's feed. Hover over a score to see its relevance, recency, and weights.
+Relevant posts show a score from 1 to 5. Click the score for its reason and breakdown. **Top matches** ranks the loaded matches in the current tab without moving X's feed.
 
 Relevance has weight 3 and recency has weight 1. Both weights are editable in Settings. Recency falls from 5 to 1 across the freshness window, which starts at 60 minutes. Older posts retain a recency score of 1. Age does not hide a post. Ranking uses the weighted result before rounding the displayed score.
 
@@ -54,7 +54,7 @@ Reposts use the original post's date. Quote posts use their own date and include
 
 The extension has no subscription, server, analytics, or X API dependency. TypeSafe charges for API use. Check [current pricing](https://docs.typesafe.ai/models). Your key never enters X's page scripts. Post text is not persisted by jevx.
 
-Assessments are shared across tabs. The cache includes the post content, profile, model, and criteria version. Profile edits invalidate previous matches. Weight changes recalculate scores from cached relevance without another Jev request. A service failure stops further requests until you pause and resume or update settings. Failed or uncertain assessments remain visible.
+Assessments are shared across tabs. The cache includes the post content, profile, model, and criteria version. Profile edits invalidate previous matches. Weight changes recalculate scores from cached relevance without another Jev request. A service failure stops further requests until you pause and resume or update settings. Request failures remain visible. Posts marked **More context needed** collapse and can be revealed with **Show**.
 
 ## Development
 
@@ -83,7 +83,7 @@ Open `/tests/preview.html`, `/tests/preview.html?view=options`, or `/tests/previ
 - Reply detection supports the observed English layout. Other languages remain unassessed. X can change its markup; ambiguous or missing dates remain visible.
 - Thread pages can omit reply markers. The opened post stays unassessed when its type is unclear. Other thread posts are excluded.
 - Collapsed rows remain separate. X's virtualized feed can affect spacing and scrolling; use **Show all** if the layout behaves incorrectly.
-- Jev sees text, not images or videos. Missing context can keep a post visible without a highlight.
+- Jev sees text, not images or videos. Posts assessed as needing more context collapse. Posts with no text bypass assessment and remain unscored.
 - The API contract, background flow, and UI use automated tests with mocked responses. Real Jev relevance quality requires a user key and review of actual matches.
 - The request timeout, cache lifetime, and initial visual tokens are explicitly unvalidated settings. Adjust them from measured behavior.
 

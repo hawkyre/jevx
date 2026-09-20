@@ -80,6 +80,21 @@ describe('feed behavior', () => {
     await vi.waitFor(() => expect(element.textContent).toContain('Could not check'));
     expect(element.matches('[data-jevx-state="collapsed"]')).toBe(false);
   });
+  it('collapses missing-context posts but respects an explicit Show choice', async () => {
+    const check = vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'assessed', assessment: {
+      decision: 'needs_context', reason: 'More context needed', relevance: null,
+    } });
+    const { main, feed, api } = setup(check);
+    const element = article(post()); main.append(element);
+    await vi.waitFor(() => expect(element.matches('[data-jevx-state="collapsed"]')).toBe(true));
+    expect(element.querySelector('[data-jevx-ui]')?.textContent).toContain('More context needed');
+    element.querySelector<HTMLButtonElement>('[data-jevx-ui] button')!.click();
+    expect(api.override).toHaveBeenCalledWith(expect.objectContaining({ id: '123456789' }), true);
+    check.mockResolvedValue({ status: 'assessed', assessment: { decision: 'needs_context', reason: 'Your choice', relevance: null } });
+    await feed.refresh();
+    await vi.waitFor(() => expect(element.querySelector('[data-jevx-ui]')?.textContent).toBe('Collapse'));
+    expect(element.matches('[data-jevx-state="collapsed"]')).toBe(false);
+  });
   it('shows the reload instruction for disconnected extension scripts', async () => {
     const { main } = setup(vi.fn<FeedApi['check']>().mockRejectedValue(new Error('Extension updated. Reload this X tab.')));
     const element = article(post()); main.append(element);

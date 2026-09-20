@@ -1,6 +1,7 @@
 import { extractPost, POST_SELECTOR } from './extract';
 import { exclusion, isScore, type Post, type PostResult, type PublicState } from './model';
 import { compareScores, nextScoreChange, scorePost, type PostScore } from './ranking';
+import { postActions } from './post-actions';
 
 export interface FeedApi {
   state(): Promise<PublicState>;
@@ -59,7 +60,8 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
     if (!state?.settings.enabled || showAll) return;
     const result = entry.result;
     const reason = result?.status === 'assessed' ? result.assessment.reason : result?.reason;
-    const collapse = result?.status === 'excluded' || (result?.status === 'assessed' && result.assessment.decision === 'collapse');
+    const collapse = result?.status === 'excluded' || (result?.status === 'assessed' &&
+      (result.assessment.decision === 'collapse' || (result.assessment.decision === 'needs_context' && result.assessment.reason !== 'Your choice')));
     const ui = document.createElement('div');
     ui.dataset.jevxUi = 'post';
     ui.className = 'jevx-post-controls';
@@ -70,7 +72,8 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
       article.removeAttribute('aria-labelledby');
       article.setAttribute('aria-label', 'Filtered post');
       const label = document.createElement('span');
-      label.textContent = result?.status === 'excluded' ? result.reason : 'Filtered post';
+      label.textContent = result?.status === 'excluded' ? result.reason
+        : result?.status === 'assessed' && result.assessment.decision === 'needs_context' ? 'More context needed' : 'Filtered post';
       label.title = reason ?? 'Outside your interests';
       ui.append(label, button('Show', () => {
         entry.shown = true;
@@ -79,31 +82,12 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
       }));
     } else if (result?.status === 'assessed' && result.assessment.decision === 'highlight') {
       article.dataset.jevxState = 'highlight';
-      const score = document.createElement('span');
-      score.dataset.jevxScore = '';
-      ui.append(score);
-      const details = document.createElement('details');
-      const summary = document.createElement('summary');
-      summary.textContent = 'Explore';
-      summary.title = reason ?? '';
-      const explanation = document.createElement('p');
-      explanation.textContent = reason ?? '';
-      const input = document.createElement('input');
-      input.placeholder = 'Search a related topic';
-      input.setAttribute('aria-label', 'Related search');
-      const form = document.createElement('form');
-      const submit = document.createElement('button');
-      submit.type = 'submit';
-      submit.textContent = 'Search';
-      form.append(input, submit);
-      form.addEventListener('submit', event => {
-        event.preventDefault(); event.stopPropagation();
-        if (input.value.trim()) void api.explore(input.value.trim()).catch(showError);
-      });
-      details.append(summary, explanation,
-        button('More from this author', () => { void api.explore(`from:${entry.post.author}`).catch(showError); }), form,
-        button('Hide this post', () => { void api.override(entry.post, false).catch(showError); }));
-      ui.append(details);
+      ui.append(...postActions({
+        reason: reason ?? '', author: entry.post.author,
+        score: () => entryScore(entry),
+        explore: query => { void api.explore(query).catch(showError); },
+        hide: () => { void api.override(entry.post, false).catch(showError); },
+      }));
     } else if (entry.shown || (result?.status === 'assessed' && result.assessment.reason === 'Your choice')) {
       ui.append(button('Collapse', () => {
         entry.shown = false;
