@@ -7,6 +7,7 @@ export interface FeedApi {
   toggle(enabled: boolean): Promise<unknown>;
   override(post: Post, show: boolean): Promise<unknown>;
   explore(query: string): Promise<unknown>;
+  options(): Promise<unknown>;
 }
 
 interface Entry {
@@ -141,7 +142,8 @@ export function startFeed(api: FeedApi, root: Document = document, locationUrl =
     const status = document.createElement('span');
     status.setAttribute('role', 'status');
     status.className = 'jevx-status';
-    toolbar.append(name, toggle, reveal, status);
+    const settings = button('Settings', () => { void api.options().catch(showError); });
+    toolbar.append(name, toggle, reveal, settings, status);
     column.prepend(toolbar);
   }
 

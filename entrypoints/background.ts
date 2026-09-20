@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { assess } from '../lib/jev';
+import { createCredentials } from '../lib/credentials';
 import {
   DEFAULT_SETTINGS, MAX_POST_AGE_MS, MODEL, POLICY_VERSION, exclusion, isPost,
   isSearchUrl, parseSettings, profileReady, searchUrl,
@@ -10,6 +11,7 @@ interface CacheEntry { expires: number; assessment: Assessment }
 interface Override { expires: number; show: boolean }
 
 export default defineBackground(() => {
+  const credentials = createCredentials(browser.storage.session);
   let revision = 0;
   let controller = new AbortController();
   let blocked: string | null = null;
@@ -24,8 +26,8 @@ export default defineBackground(() => {
   }
 
   async function state(): Promise<PublicState> {
-    const [config, session] = await Promise.all([settings(), browser.storage.session.get('key')]);
-    return { settings: config, connected: typeof session.key === 'string' && session.key.length > 0 };
+    const [config, key] = await Promise.all([settings(), credentials.get()]);
+    return { settings: config, connected: Boolean(key) };
   }
 
   async function broadcast() {
@@ -65,12 +67,13 @@ export default defineBackground(() => {
     const excluded = exclusion(post);
     if (excluded) return excluded;
     if (!config.consent || !profileReady(config.profile)) return { status: 'visible', reason: 'Set up your profile in jevx' };
-    const session = await browser.storage.session.get(['key', `override:${post.id}`]);
+    const session = await browser.storage.session.get(`override:${post.id}`);
     const override = session[`override:${post.id}`] as Override | undefined;
     if (override && override.expires > Date.now()) {
       return { status: 'assessed', assessment: { decision: override.show ? 'needs_context' : 'collapse', reason: 'Your choice' } };
     }
-    if (typeof session.key !== 'string' || !session.key) return { status: 'visible', reason: 'Connect TypeSafe in settings' };
+    const key = await credentials.get();
+    if (!key) return { status: 'visible', reason: 'Connect TypeSafe in settings' };
     const cacheKey = `cache:${await digest([MODEL, POLICY_VERSION, config.profile, post])}`;
     const cached = (await browser.storage.session.get(cacheKey))[cacheKey] as CacheEntry | undefined;
     if (requestedRevision !== revision) return { status: 'visible', reason: 'Settings changed' };
@@ -78,7 +81,6 @@ export default defineBackground(() => {
     if (blocked) return { status: 'visible', reason: blocked };
     const existing = pending.get(cacheKey);
     if (existing) return existing;
-    const key = session.key;
     const job = queue.then(async (): Promise<PostResult> => {
       if (requestedRevision !== revision) return { status: 'visible', reason: 'Settings changed' };
       const expired = exclusion(post);
@@ -143,6 +145,10 @@ export default defineBackground(() => {
     if (!raw || typeof raw !== 'object') throw new Error('Invalid request');
     const message = raw as Record<string, unknown>;
     if (message.type === 'state') return state();
+    if (message.type === 'options') {
+      await browser.runtime.openOptionsPage();
+      return null;
+    }
     if (message.type === 'assess' && fromX && isPost(message.post)) return check(message.post);
     if (message.type === 'toggle' && typeof message.enabled === 'boolean') {
       const config = await settings();
@@ -169,13 +175,13 @@ export default defineBackground(() => {
     }
     if (message.type === 'connect' && typeof message.key === 'string' && message.key.trim()) {
       invalidate();
-      await browser.storage.session.set({ key: message.key.trim() });
+      await credentials.save(message.key.trim());
       await broadcast();
       return state();
     }
     if (message.type === 'disconnect') {
       invalidate();
-      await browser.storage.session.remove('key');
+      await credentials.remove();
       await broadcast();
       return state();
     }

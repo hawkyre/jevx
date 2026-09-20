@@ -49,6 +49,7 @@ if (view === 'feed') {
     toggle: async enabled => { await api.toggle(enabled); await feed.refresh(); },
     override: async (post, show) => { overrides.set(post.id, show); await feed.refresh(); },
     explore: async () => undefined,
+    options: api.options,
   }, document, () => 'https://x.com/home');
 } else if (view === 'options') {
   document.body.className = 'options';

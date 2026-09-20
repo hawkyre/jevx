@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
 import { post, readyState } from './fixtures';
 
 const mocks = vi.hoisted(() => {
@@ -14,7 +15,7 @@ const mocks = vi.hoisted(() => {
   });
   const tabs = new Map<number, { id: number; url: string }>();
   const browser = {
-    runtime: { id: 'jevx-test', getURL: (path: string) => `chrome-extension://jevx-test${path}`, sendMessage: vi.fn(async () => undefined), onMessage: { addListener: (callback: Listener) => { listener = callback; } } },
+    runtime: { id: 'jevx-test', getURL: (path: string) => `chrome-extension://jevx-test${path}`, openOptionsPage: vi.fn(async () => undefined), sendMessage: vi.fn(async () => undefined), onMessage: { addListener: (callback: Listener) => { listener = callback; } } },
     storage: { local: storage(local), session: storage(session) },
     tabs: {
       query: vi.fn(async () => []), sendMessage: vi.fn(async () => undefined),
@@ -34,6 +35,7 @@ const x = { id: 'jevx-test', url: 'https://x.com/home', frameId: 0 };
 const response = () => new Response(JSON.stringify({ answers: { visibility: { type: 'choice', choice: 'highlight' } } }), { status: 200 });
 
 beforeEach(() => {
+  vi.stubGlobal('indexedDB', new IDBFactory());
   for (const key of Object.keys(mocks.local)) delete mocks.local[key];
   for (const key of Object.keys(mocks.session)) delete mocks.session[key];
   mocks.tabs.clear(); vi.clearAllMocks();
@@ -44,6 +46,56 @@ beforeEach(() => {
 });
 
 describe('background security and session state', () => {
+  it('opens settings from Home without granting settings writes to X', async () => {
+    expect((await mocks.call({ type: 'options' }, x)).ok).toBe(true);
+    expect(mocks.browser.runtime.openOptionsPage).toHaveBeenCalledTimes(1);
+    expect((await mocks.call({ type: 'connect', key: 'bad' }, x)).ok).toBe(false);
+  });
+  it('keeps the saved key after session storage and the background restart', async () => {
+    const connected = await mocks.call({ type: 'connect', key: '  persistent-test-key  ' }, extension);
+    expect(connected.value).toMatchObject({ connected: true });
+    for (const key of Object.keys(mocks.session)) delete mocks.session[key];
+    background();
+    const state = await mocks.call({ type: 'state' }, x);
+    expect(state.value).toMatchObject({ connected: true });
+    expect(JSON.stringify(state)).not.toContain('persistent-test-key');
+    expect(JSON.stringify(mocks.local)).not.toContain('persistent-test-key');
+    await mocks.call({ type: 'assess', post: post() }, x);
+    expect(fetch).toHaveBeenCalledWith('https://api.typesafe.ai/v1/systemone', expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer persistent-test-key' }),
+    }));
+  });
+  it('transfers a session key to persistent storage without exposing it', async () => {
+    await mocks.call({ type: 'state' }, x);
+    expect(mocks.session.key).toBeUndefined();
+    background();
+    expect((await mocks.call({ type: 'state' }, x)).value).toMatchObject({ connected: true });
+    await mocks.call({ type: 'assess', post: post() }, x);
+    expect(fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer test-only-key' }),
+    }));
+  });
+  it('removes both saved and session keys on disconnect', async () => {
+    await mocks.call({ type: 'connect', key: 'saved-test-key' }, extension);
+    mocks.session.key = 'stale-test-key';
+    const disconnected = await mocks.call({ type: 'disconnect' }, extension);
+    expect(disconnected.value).toMatchObject({ connected: false });
+    expect(mocks.session.key).toBeUndefined();
+    background();
+    expect((await mocks.call({ type: 'state' }, x)).value).toMatchObject({ connected: false });
+    await mocks.call({ type: 'assess', post: post() }, x);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('does not replace a saved key with a stale session key', async () => {
+    await mocks.call({ type: 'connect', key: 'saved-test-key' }, extension);
+    mocks.session.key = 'stale-test-key';
+    background();
+    await mocks.call({ type: 'assess', post: post() }, x);
+    expect(mocks.session.key).toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer saved-test-key' }),
+    }));
+  });
   it('never includes the key in the public state', async () => {
     const result = await mocks.call({ type: 'state' }, x);
     expect(result.ok).toBe(true);

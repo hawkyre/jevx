@@ -31,7 +31,9 @@ Reload existing X tabs after installation.
 
 Searches open in X's Latest view with replies excluded. The extension reuses its search tabs if they still show that search. It does not navigate tabs that you moved elsewhere.
 
-The filter works on loaded posts across X tabs. **Show** reveals a collapsed post. **Show all** reveals the current tab. **Filter off** pauses filtering across tabs. **Explore** opens an author search or a related search you enter. Add that search in the popup if you want to save it.
+The filter runs automatically on X Home, including **For you** and **Following**, and on loaded posts across X tabs. Saved searches are optional. Use **Settings** in the feed toolbar to set up your profile and key without opening the extension popup.
+
+**Show** reveals a collapsed post. **Show all** reveals the current tab. **Filter off** pauses filtering across tabs. **Explore** opens an author search or a related search you enter. Add that search in the popup if you want to save it.
 
 Posts expire at exactly 60 minutes. Reposts use the original post's date. Quote posts use their own date and include available quoted text. Replies and expired posts bypass Jev.
 
@@ -40,7 +42,7 @@ Posts expire at exactly 60 minutes. Reposts use the original post's date. Quote 
 | Data | Storage or destination |
 | --- | --- |
 | Profile, saved searches, filter preference, consent | This browser's local extension storage |
-| TypeSafe key | Extension session storage; removed at browser restart |
+| TypeSafe key | Extension-origin IndexedDB; persists across restarts until you disconnect or remove the extension |
 | Assessments and Show/Hide choices | Session storage; entries expire with the post |
 | Managed search tab IDs | Session storage |
 | Eligible post text, quoted text, author, profile | TypeSafe, only after you enable assessment |

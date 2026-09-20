@@ -10,13 +10,35 @@ function setup(check = vi.fn<FeedApi['check']>().mockResolvedValue({ status: 'as
   document.documentElement.lang = 'en';
   document.body.innerHTML = '<main data-testid="primaryColumn"></main>';
   const state = readyState();
-  const api: FeedApi = { state: vi.fn().mockImplementation(async () => state), check, toggle: vi.fn(), override: vi.fn().mockResolvedValue(null), explore: vi.fn() };
+  const api: FeedApi = { state: vi.fn().mockImplementation(async () => state), check, toggle: vi.fn(), override: vi.fn().mockResolvedValue(null), explore: vi.fn(), options: vi.fn().mockResolvedValue(null) };
   const feed = startFeed(api, document, () => 'https://x.com/home');
   stop = feed.dispose;
   return { feed, api, state, main: document.querySelector('main')! };
 }
 
 describe('feed behavior', () => {
+  it('filters newly loaded Home posts without opening searches', async () => {
+    const { main, api } = setup();
+    const first = article(post()); main.append(first);
+    await vi.waitFor(() => expect(first.classList.contains('jevx-collapsed')).toBe(true));
+    const next = article(post({ id: '222' })); main.append(next);
+    await vi.waitFor(() => expect(next.classList.contains('jevx-collapsed')).toBe(true));
+    expect(api.check).toHaveBeenCalledTimes(2);
+    expect(api.explore).not.toHaveBeenCalled();
+    const settings = [...main.querySelectorAll<HTMLButtonElement>('[data-jevx-ui="toolbar"] button')].find(button => button.textContent === 'Settings');
+    settings!.click();
+    expect(api.options).toHaveBeenCalledTimes(1);
+  });
+  it('keeps filtering after Home replaces its timeline', async () => {
+    const { main, api } = setup();
+    const first = article(post()); main.append(first);
+    await vi.waitFor(() => expect(first.classList.contains('jevx-collapsed')).toBe(true));
+    const following = article(post({ id: '333' }));
+    main.replaceChildren(following);
+    await vi.waitFor(() => expect(following.classList.contains('jevx-collapsed')).toBe(true));
+    expect(main.querySelectorAll('[data-jevx-ui="toolbar"]')).toHaveLength(1);
+    expect(api.check).toHaveBeenCalledTimes(2);
+  });
   it('collapses irrelevant posts, lets the reader reveal them, and restores on pause', async () => {
     const { main, feed, state, api } = setup();
     const element = article(post()); main.append(element);

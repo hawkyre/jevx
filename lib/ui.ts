@@ -125,7 +125,7 @@ export async function mountOptions(root: HTMLElement, api: UiApi) {
     <section class="connection-section" aria-labelledby="connection-heading"><div class="section-title"><h3 id="connection-heading">TYPESAFE</h3><span id="connection-state" class="muted"></span></div>
       <form id="connect-form"><label for="key">Your API key</label><div class="key-row"><input id="key" type="password" autocomplete="off" placeholder="Paste your TypeSafe key" required><button type="submit" class="secondary">Connect</button></div></form>
       <button id="disconnect" class="text-button" hidden>Disconnect</button>
-      <p class="hint">Your key stays in this browser session. Enter it again after a restart.</p>
+      <p class="hint">Your key is saved in this browser. Disconnect to remove it.</p>
       <a class="text-link" href="https://console.typesafe.ai/" target="_blank" rel="noreferrer">Get a TypeSafe key ↗</a>
     </section><p role="status" aria-live="polite"></p>`;
   let current = await api.state();
@@ -136,7 +136,7 @@ export async function mountOptions(root: HTMLElement, api: UiApi) {
   required<HTMLInputElement>(form, '[name="consent"]').checked = current.settings.consent;
 
   function connection() {
-    required<HTMLElement>(root, '#connection-state').textContent = current.connected ? 'Connected for this session' : 'Not connected';
+    required<HTMLElement>(root, '#connection-state').textContent = current.connected ? 'Connected' : 'Not connected';
     required<HTMLElement>(root, '#connect-form').hidden = current.connected;
     required<HTMLElement>(root, '#disconnect').hidden = !current.connected;
   }
@@ -160,7 +160,7 @@ export async function mountOptions(root: HTMLElement, api: UiApi) {
     const key = required<HTMLInputElement>(root, '#key');
     const submit = required<HTMLButtonElement>(root, '#connect-form button');
     submit.disabled = true;
-    try { current = await api.connect(key.value); key.value = ''; connection(); report(root, 'Key saved for this session. It will be checked with the next post.'); }
+    try { current = await api.connect(key.value); key.value = ''; connection(); report(root, 'Key saved. It will be checked with the next post.'); }
     catch (error) { failure(root, error); }
     finally { submit.disabled = false; }
   });
