@@ -15,13 +15,13 @@ Already use Claude Code or Codex? Run one command below in your terminal with th
 **Claude Code**
 
 ```sh
-claude 'Install jevx for Chrome from https://github.com/hawkyre/jevx. Clone it into ~/dev/jevx. If that directory exists, check its origin and preserve local changes. Read the README installation instructions. Check Git and Node.js 24 with npm; help me set up missing prerequisites. Run npm ci and npm run build. Give me the absolute extension directory and guide me through Load unpacked in chrome://extensions. Then guide me through profile setup and entering my TypeSafe key directly in jevx Settings, never in this chat.'
+claude 'Install jevx for Chrome from https://github.com/hawkyre/jevx. Ask me where to keep the extension, then clone it into that folder. If that directory exists, check its origin and preserve local changes. Read the README installation instructions. Check Git and Node.js 24 with npm; help me set up missing prerequisites. Run npm ci and npm run build. Give me the absolute extension directory and guide me through Load unpacked in chrome://extensions. Then guide me through profile setup and entering my TypeSafe key directly in jevx Settings, never in this chat.'
 ```
 
 **Codex**
 
 ```sh
-codex 'Install jevx for Chrome from https://github.com/hawkyre/jevx. Clone it into ~/dev/jevx. If that directory exists, check its origin and preserve local changes. Read the README installation instructions. Check Git and Node.js 24 with npm; help me set up missing prerequisites. Run npm ci and npm run build. Give me the absolute extension directory and guide me through Load unpacked in chrome://extensions. Then guide me through profile setup and entering my TypeSafe key directly in jevx Settings, never in this chat.'
+codex 'Install jevx for Chrome from https://github.com/hawkyre/jevx. Ask me where to keep the extension, then clone it into that folder. If that directory exists, check its origin and preserve local changes. Read the README installation instructions. Check Git and Node.js 24 with npm; help me set up missing prerequisites. Run npm ci and npm run build. Give me the absolute extension directory and guide me through Load unpacked in chrome://extensions. Then guide me through profile setup and entering my TypeSafe key directly in jevx Settings, never in this chat.'
 ```
 
 For Firefox, tell the agent: **Use Firefox instead.** It should run `npm run build:firefox` and follow the Firefox instructions below.
