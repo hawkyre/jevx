@@ -1,7 +1,0 @@
-Built-in Imagegen · initial prompt
-
-Use case: logo-brand. Create one finished, extremely minimal browser-extension icon for jevx, an open-source tool that selects relevant posts from a noisy feed. Square 1024x1024 image. Flat near-black green background #121512, full bleed. Center a compact distinctive geometric mark: three horizontal rounded post bars, with the middle bar in pale sage green #a6c7ad and the two shorter surrounding bars in muted gray-green. Integrate a small clean left edge accent into the middle bar to suggest a selected post. Bold solid shapes, generous negative space, optically balanced spacing, recognizable at 16 pixels. Mark fills about two thirds of the square. No letters, no text, no gradients, no shadows, no texture, no 3D, no mockup or presentation board, no border, no watermarks. Output only the single icon.
-
-Refinement prompt
-
-Refine this logo into a completely flat, precise 2D browser extension icon. Preserve the three horizontal rounded bars, larger highlighted center bar, centered composition and sage/charcoal colors. Remove ALL glow, shading, lighting, texture, gradients and transparency artifacts. Use a single uniform solid dark #121512 square background, solid #a6c7ad center bar, solid #68716b top and bottom bars. Remove the brighter cap on the center bar: one uniform color for that bar. No text. Perfectly even gaps. Crisp vector-like geometry. This must look like an SVG UI icon, not a photograph or luminous object.

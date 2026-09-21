@@ -4,6 +4,10 @@
 
 Name: **jevx**
 
+Homepage/source: https://github.com/hawkyre/jevx
+
+Support: https://github.com/hawkyre/jevx/issues
+
 Summary: **Find posts worth your reply on X. Rank by your interests and recency, and collapse irrelevant posts.**
 
 Description:
@@ -68,7 +72,6 @@ X and TypeSafe can require accounts. The publisher must provide any review acces
 
 ## Submission checklist
 
-- [ ] Set the public repository URL and support contact in the listings.
 - [ ] Host `public/privacy.html` at a public HTTPS URL and use it in Chrome's privacy field.
 - [ ] Confirm that `jevx@extensions.local` is the permanent Firefox ID before the first submission. An email-shaped ID need not be a mailbox.
 - [ ] Capture a live smoke test on Chrome and Firefox with the release package and a dedicated TypeSafe key.
@@ -76,7 +79,7 @@ X and TypeSafe can require accounts. The publisher must provide any review acces
 - [ ] Confirm publisher account details and store declarations.
 - [ ] Upload `.output/jevx-0.1.0-chrome.zip` to Chrome.
 - [ ] Upload `.output/jevx-0.1.0-firefox.zip` and `.output/jevx-0.1.0-sources.zip` to Firefox.
-- [ ] Use `store/screenshot-1280x800.png`, `store/draft-1280x800.png`, `store/promo-440x280.png`, and `public/icon/128.png` as listing assets.
+- [ ] Use `assets/store/screenshot-1280x800.png`, `assets/store/draft-1280x800.png`, `assets/store/promo-440x280.png`, and `public/icon/128.png` as listing assets.
 
 ## Requirements checked
 

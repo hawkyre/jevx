@@ -20,7 +20,7 @@ for (const browser of ['chrome', 'firefox']) {
   await access(`${root}/privacy.html`);
   await access(`${root}/THIRD_PARTY_NOTICES.txt`);
   const files = await readdir(root, { recursive: true });
-  assert(!files.some(path => /(^|\/)(?:design|tests|node_modules|\.git|\.env[^/]*)(?:\/|$)/.test(path)), 'Development or private files found in package');
+  assert(!files.some(path => /(^|\/)(?:tools|tests|node_modules|\.git|\.env[^/]*)(?:\/|$)/.test(path)), 'Development or private files found in package');
   assert.equal(manifest.externally_connectable, undefined);
   await access(`.output/${pkg.name}-${pkg.version}-${browser}.zip`);
 }

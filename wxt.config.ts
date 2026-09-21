@@ -3,7 +3,7 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   manifestVersion: 3,
   zip: {
-    includeSources: ['entrypoints/**', 'lib/**', 'assets/**', 'public/**', 'scripts/**', 'package.json', 'package-lock.json', 'tsconfig.json', 'wxt.config.ts', 'README.md', 'LICENSE', 'docs/BUILD.md'],
+    includeSources: ['entrypoints/**', 'lib/**', 'assets/ui.css', 'assets/logo.png', 'public/**', 'scripts/**', 'package.json', 'package-lock.json', 'tsconfig.json', 'wxt.config.ts', 'README.md', 'LICENSE', 'docs/BUILD.md'],
   },
   manifest: ({ browser }) => ({
     name: 'jevx',

@@ -4,9 +4,9 @@ A small, open-source Chrome and Firefox extension for finding posts worth replyi
 
 Save searches. Tell Jev what interests you. Relevant posts stay expanded with a quiet highlight. Other posts collapse into a single row.
 
-![jevx feed with scored posts and collapsed rows](store/screenshot-1280x800.png)
+![jevx feed with scored posts and collapsed rows](assets/store/screenshot-1280x800.png)
 
-The extension and its design files are MIT licensed. AI features require your own TypeSafe key and can incur API charges. There is no jevx subscription or developer-operated backend.
+The extension and its assets are MIT licensed. AI features require your own TypeSafe key and can incur API charges. There is no jevx subscription or developer-operated backend.
 
 ## Install locally
 
@@ -55,9 +55,9 @@ The panel waits one second after typing stops. All enabled axes are assessed tog
 
 Selected profiles are remembered separately for posts, replies, and quotes. Compatible axis results use a session cache. Changing weights does not require new AI judgments. Draft text is not stored by jevx. With draft consent enabled, unpublished text, available parent/quoted text, and your profile go to TypeSafe. Draft scoring is independent of the feed filter switch and skips Notifications and direct-message pages. The draft type can be corrected in the expanded panel when X's markup is ambiguous.
 
-![jevx draft scorer with an optimization profile and improvement cue](store/draft-1280x800.png)
+![jevx draft scorer with an optimization profile and improvement cue](assets/store/draft-1280x800.png)
 
-Preview it with `/design/preview.html?view=draft`. Preview scores are synthetic.
+Preview it with `/tools/preview.html?view=draft`. Preview scores are synthetic.
 
 ## Data and cost
 
@@ -97,7 +97,7 @@ For a local interface preview with synthetic posts and mocked assessments:
 npm run preview
 ```
 
-Open `/design/preview.html`. See [all design previews and editable sources](design/README.md), including settings, the feed, composers, and store artwork. Preview data does not persist. Preview files are not included in extension builds.
+Open `/tools/preview.html`. See [preview routes and asset exports](CONTRIBUTING.md#ui-previews-and-assets). Preview data does not persist. Preview tools are not included in extension builds.
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before making changes. Use [SECURITY.md](SECURITY.md) for sensitive reports.
 
@@ -111,7 +111,9 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before making changes. Use [SECURITY.md]
 - The API contract, background flow, and UI use automated tests with mocked responses. Real Jev relevance quality requires a user key and review of actual matches.
 - The request timeout, cache lifetime, and initial visual tokens are explicitly unvalidated settings. Adjust them from measured behavior.
 
-The [MIT license](LICENSE) covers the project's code and supplied design assets. Bundled runtime notices are in [THIRD_PARTY_NOTICES.txt](public/THIRD_PARTY_NOTICES.txt). jevx is not affiliated with X or TypeSafe.
+The [MIT license](LICENSE) covers the project's code and supplied assets. Bundled runtime notices are in [THIRD_PARTY_NOTICES.txt](public/THIRD_PARTY_NOTICES.txt). jevx is not affiliated with X or TypeSafe.
+
+Report bugs or request features through [GitHub issues](https://github.com/hawkyre/jevx/issues).
 
 ## Release
 
