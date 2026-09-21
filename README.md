@@ -8,11 +8,34 @@ Save searches. Tell Jev what interests you. Relevant posts stay expanded with a 
 
 The extension and its assets are MIT licensed. AI features require your own TypeSafe key and can incur API charges. There is no jevx subscription or developer-operated backend.
 
+## Install with a coding agent
+
+Already use Claude Code or Codex? Run one command below in your terminal with that CLI installed and signed in.
+
+**Claude Code**
+
+```sh
+claude 'Install jevx for Chrome from https://github.com/hawkyre/jevx. Clone it into ~/dev/jevx. If that directory exists, check its origin and preserve local changes. Read the README installation instructions. Check Git and Node.js 24 with npm; help me set up missing prerequisites. Run npm ci and npm run build. Give me the absolute extension directory and guide me through Load unpacked in chrome://extensions. Then guide me through profile setup and entering my TypeSafe key directly in jevx Settings, never in this chat.'
+```
+
+**Codex**
+
+```sh
+codex 'Install jevx for Chrome from https://github.com/hawkyre/jevx. Clone it into ~/dev/jevx. If that directory exists, check its origin and preserve local changes. Read the README installation instructions. Check Git and Node.js 24 with npm; help me set up missing prerequisites. Run npm ci and npm run build. Give me the absolute extension directory and guide me through Load unpacked in chrome://extensions. Then guide me through profile setup and entering my TypeSafe key directly in jevx Settings, never in this chat.'
+```
+
+For Firefox, tell the agent: **Use Firefox instead.** It should run `npm run build:firefox` and follow the Firefox instructions below.
+
+The agent downloads and builds jevx. You still load it in your browser and enter your TypeSafe key in Settings.
+Keep the installation folder: the browser loads the extension from it.
+
 ## Install locally
 
 Use Node.js 24, Chrome 116 or later, or Firefox 140 or later.
 
 ```sh
+git clone https://github.com/hawkyre/jevx.git
+cd jevx
 npm ci
 npm run build
 npm run build:firefox
